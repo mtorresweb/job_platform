@@ -1,0 +1,339 @@
+// ==========================================
+// ESQUEMA DE BASE DE DATOS - SERVICESPRO
+// ==========================================
+// Schema para plataforma de servicios profesionales
+// Cumple con normativas de protección de datos (Ley 1581/2012 Colombia)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// MODELOS DE USUARIO Y AUTENTICACIÓN
+// ==========================================
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  password         String   // Hash con bcrypt
+  role             UserRole @default(CLIENT)
+  isEmailVerified  Boolean  @default(false)
+  isActive         Boolean  @default(true)  // Usuario activo/desactivado
+  avatar           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lastLoginAt      DateTime?
+  
+  // Datos de protección de privacidad (Ley 1581/2012)
+  acceptedTermsAt  DateTime?
+  acceptedPrivacyAt DateTime?
+  dataRetentionExpiry DateTime?
+  
+  // Relaciones como cliente
+  clientBookings   Booking[] @relation("ClientBookings")
+  clientReviews    Review[]  @relation("ClientReviews")
+  sentMessages     Message[] @relation("MessageSender")
+  clientConversations Conversation[] @relation("ClientConversations")
+  
+  // Relaciones como profesional
+  professional     Professional?
+  professionalBookings Booking[] @relation("ProfessionalBookings")
+  professionalReviews Review[] @relation("ProfessionalReviews")
+  professionalConversations Conversation[] @relation("ProfessionalConversations")
+  
+  // Notificaciones
+  notifications    Notification[]
+  
+  // Logs de actividad (auditoría)
+  activityLogs     ActivityLog[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  CLIENT
+  PROFESSIONAL
+  ADMIN
+}
+
+model Professional {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  bio          String?
+  experience   Int     @default(0) // años de experiencia
+  rating       Float   @default(0.0)
+  reviewCount  Int     @default(0)
+  isVerified   Boolean @default(false)
+  specialties  String[] // array de especialidades
+  hourlyRate   Float?
+  
+  // Ubicación
+  address      String?
+  city         String?
+  state        String?
+  country      String  @default("Colombia")
+  zipCode      String?
+  latitude     Float?
+  longitude    Float?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relaciones
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     Service[]
+  availability Availability[]
+  
+  @@map("professionals")
+}
+
+model Availability {
+  id             String      @id @default(cuid())
+  professionalId String
+  dayOfWeek      Int         // 0-6 (domingo-sábado)
+  startTime      String      // formato HH:mm
+  endTime        String      // formato HH:mm
+  isAvailable    Boolean     @default(true)
+  
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  @@unique([professionalId, dayOfWeek])
+  @@map("availability")
+}
+
+// ==========================================
+// MODELOS DE SERVICIOS
+// ==========================================
+
+model ServiceCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String
+  icon        String    // nombre del icono de Lucide
+  slug        String    @unique
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relaciones
+  services    Service[]
+  
+  @@map("service_categories")
+}
+
+model Service {
+  id             String          @id @default(cuid())
+  title          String
+  description    String
+  categoryId     String
+  professionalId String
+  price          Float
+  duration       Int             // en minutos
+  images         String[]        // URLs de imágenes
+  tags           String[]        // etiquetas para búsqueda
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  
+  // Estadísticas
+  viewCount      Int             @default(0)
+  bookingCount   Int             @default(0)
+  
+  // Relaciones
+  category       ServiceCategory @relation(fields: [categoryId], references: [id])
+  professional   Professional    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  bookings       Booking[]
+  
+  @@map("services")
+}
+
+// ==========================================
+// MODELOS DE RESERVAS Y RESEÑAS
+// ==========================================
+
+model Booking {
+  id             String        @id @default(cuid())
+  clientId       String
+  professionalId String
+  serviceId      String
+  status         BookingStatus @default(PENDING)
+  scheduledAt    DateTime
+  duration       Int           // en minutos
+  totalPrice     Float         // Precio total - 100% para el profesional (sin comisión)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  // Campos de auditoría
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  completedAt    DateTime?
+  cancellationReason String?
+  
+  // Relaciones
+  client         User          @relation("ClientBookings", fields: [clientId], references: [id])
+  professional   User          @relation("ProfessionalBookings", fields: [professionalId], references: [id])
+  service        Service       @relation(fields: [serviceId], references: [id])
+  review         Review?
+  
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Review {
+  id             String   @id @default(cuid())
+  bookingId      String   @unique
+  clientId       String
+  professionalId String
+  rating         Int      // 1-5
+  comment        String?
+  response       String?  // respuesta del profesional
+  isVerified     Boolean  @default(false) // verificada por el sistema
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relaciones
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  client         User     @relation("ClientReviews", fields: [clientId], references: [id])
+  professional   User     @relation("ProfessionalReviews", fields: [professionalId], references: [id])
+  
+  @@map("reviews")
+}
+
+// ==========================================
+// MODELOS DE MENSAJERÍA
+// ==========================================
+
+model Conversation {
+  id             String    @id @default(cuid())
+  clientId       String
+  professionalId String
+  lastMessageAt  DateTime?
+  unreadCount    Int       @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relaciones
+  client         User      @relation("ClientConversations", fields: [clientId], references: [id])
+  professional   User      @relation("ProfessionalConversations", fields: [professionalId], references: [id])
+  messages       Message[]
+  
+  @@unique([clientId, professionalId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  messageType    MessageType @default(TEXT)
+  isRead         Boolean     @default(false)
+  readAt         DateTime?
+  createdAt      DateTime    @default(now())
+  
+  // Metadatos para archivos
+  fileName       String?
+  fileSize       Int?
+  fileMimeType   String?
+  
+  // Relaciones
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+// ==========================================
+// MODELOS DE NOTIFICACIONES
+// ==========================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  relatedId String?          // ID relacionado (booking, message, etc.)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  expiresAt DateTime?        // notificaciones que expiran
+  
+  // Metadatos adicionales
+  metadata  Json?            // datos adicionales en formato JSON
+  
+  // Relaciones
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  NEW_MESSAGE
+  NEW_REVIEW
+  SERVICE_COMPLETED // Reemplaza PAYMENT_RECEIVED
+  SYSTEM
+  REMINDER
+}
+
+// ==========================================
+// MODELOS DE AUDITORÍA Y LOGS
+// ==========================================
+
+model ActivityLog {
+  id        String           @id @default(cuid())
+  userId    String?
+  action    String           // acción realizada
+  resource  String           // recurso afectado
+  resourceId String?         // ID del recurso
+  details   Json?            // detalles adicionales
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime         @default(now())
+  
+  // Relaciones
+  user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("activity_logs")
+}
+
+// ==========================================
+// MODELOS DE CONFIGURACIÓN
+// ==========================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string") // string, number, boolean, json
+  isPublic  Boolean  @default(false)    // si es accesible desde el frontend
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_config")
+}
