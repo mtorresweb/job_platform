@@ -124,8 +124,7 @@ export default function HowItWorksPage() {
           <p className="text-lg text-foreground/60 text-center mb-16 max-w-3xl mx-auto">
             Únete a nuestra plataforma y comienza a conectar con profesionales o
             clientes en solo cuatro pasos simples
-          </p>{" "}
-          <div className="grid lg:grid-cols-2 gap-8">
+          </p>          <div className="grid lg:grid-cols-2 gap-8">
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
@@ -162,39 +161,30 @@ export default function HowItWorksPage() {
                     >
                       <Icon className="h-6 w-6" />
                     </div>
-                  </div>{" "}
+                  </div>
+
                   <CardContent className="p-0">
-                    {/* Step Number Badge */}
                     <div className="mb-4">
-                      <Badge
-                        variant="outline"
+                      <div
                         className={`
-                          text-sm font-bold px-3 py-1 mb-4
+                          inline-flex h-12 w-12 rounded-lg items-center justify-center text-white font-bold text-lg mb-4
                           ${
-                            step.color === "blue"
-                              ? "border-blue-200 text-blue-700 bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:bg-blue-950/30"
-                              : ""
+                            step.color === "blue" ? "bg-blue-600" : ""
                           }
                           ${
-                            step.color === "green"
-                              ? "border-green-200 text-green-700 bg-green-50 dark:border-green-800 dark:text-green-300 dark:bg-green-950/30"
-                              : ""
+                            step.color === "green" ? "bg-green-600" : ""
                           }
                           ${
-                            step.color === "purple"
-                              ? "border-purple-200 text-purple-700 bg-purple-50 dark:border-purple-800 dark:text-purple-300 dark:bg-purple-950/30"
-                              : ""
+                            step.color === "purple" ? "bg-purple-600" : ""
                           }
                           ${
-                            step.color === "orange"
-                              ? "border-orange-200 text-orange-700 bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:bg-orange-950/30"
-                              : ""
+                            step.color === "orange" ? "bg-orange-600" : ""
                           }
                         `}
                       >
-                        Paso {step.number}
-                      </Badge>
-
+                        {step.number}
+                      </div>
+                      
                       <CardTitle className="text-xl font-bold mb-3 pr-16">
                         {step.title}
                       </CardTitle>

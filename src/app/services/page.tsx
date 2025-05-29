@@ -19,11 +19,9 @@ import {
   MapPin,
   Star,
   Clock,
-  Filter,
   Grid3X3,
   List,
   SortAsc,
-  Users,
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
