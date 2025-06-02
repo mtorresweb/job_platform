@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -28,117 +30,51 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import {
   Calendar as CalendarIcon,
-  Clock,  MapPin,  CheckCircle,
+  Clock,
+  CheckCircle,
   MessageSquare,
   Phone,
   DollarSign,
-  User,  Plus,
+  User,
+  Plus,
   Edit,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { useUserBookings, useProfessionalBookings } from "@/shared/hooks/useBookings";
+import { BookingStatus } from "@/shared/utils/bookings-api";
 
-// Mock data para reservas
-const MOCK_BOOKINGS = [
-  {
-    id: 1,
-    client: {
-      name: "Ana García",
-      avatar: "/avatars/ana.jpg",
-      phone: "+57 300 123 4567",
-    },
-    professional: {
-      name: "Carlos Méndez",
-      avatar: "/avatars/carlos.jpg",
-      rating: 4.9,
-    },
-    service: {
-      title: "Reparación de Lavadora",
-      category: "Electrodomésticos",
-      price: "$80.000",
-    },
-    date: new Date(2024, 2, 15, 14, 0), // 15 marzo 2024, 2:00 PM
-    duration: 120, // minutos
-    status: "confirmed",
-    location: "Calle 123 #45-67, Barranquilla",
-    description: "Lavadora LG que no centrifuga bien y hace ruidos extraños",
-    notes: "Llevar herramientas para rodamientos",
-  },
-  {
-    id: 2,
-    client: {
-      name: "Roberto Silva",
-      avatar: "/avatars/roberto.jpg",
-      phone: "+57 301 234 5678",
-    },
-    professional: {
-      name: "María Rodríguez",
-      avatar: "/avatars/maria.jpg",
-      rating: 4.8,
-    },
-    service: {
-      title: "Limpieza Profunda",
-      category: "Limpieza",
-      price: "$120.000",
-    },
-    date: new Date(2024, 2, 16, 9, 0), // 16 marzo 2024, 9:00 AM
-    duration: 180, // minutos
-    status: "pending",
-    location: "Carrera 45 #78-90, Soledad",
-    description: "Limpieza profunda de apartamento de 3 habitaciones",
-    notes: "",
-  },
-  {
-    id: 3,
-    client: {
-      name: "Luis Herrera",
-      avatar: "/avatars/luis.jpg",
-      phone: "+57 302 345 6789",
-    },
-    professional: {
-      name: "Carlos Méndez",
-      avatar: "/avatars/carlos.jpg",
-      rating: 4.9,
-    },
-    service: {
-      title: "Reparación de Microondas",
-      category: "Electrodomésticos",
-      price: "$60.000",
-    },
-    date: new Date(2024, 2, 14, 16, 0), // 14 marzo 2024, 4:00 PM
-    duration: 60, // minutos
-    status: "completed",
-    location: "Avenida Murillo #123, Barranquilla",
-    description: "Microondas Samsung que no calienta",
-    notes: "Magnetrón reemplazado exitosamente",
-  },
-];
-
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: BookingStatus) => {
   switch (status) {
-    case "confirmed":
+    case BookingStatus.CONFIRMED:
       return "bg-green-100 text-green-700";
-    case "pending":
+    case BookingStatus.PENDING:
       return "bg-yellow-100 text-yellow-700";
-    case "completed":
+    case BookingStatus.COMPLETED:
       return "bg-blue-100 text-blue-700";
-    case "cancelled":
+    case BookingStatus.CANCELLED:
       return "bg-red-100 text-red-700";
+    case BookingStatus.IN_PROGRESS:
+      return "bg-purple-100 text-purple-700";
     default:
       return "bg-gray-100 text-gray-700";
   }
 };
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: BookingStatus) => {
   switch (status) {
-    case "confirmed":
+    case BookingStatus.CONFIRMED:
       return "Confirmada";
-    case "pending":
+    case BookingStatus.PENDING:
       return "Pendiente";
-    case "completed":
+    case BookingStatus.COMPLETED:
       return "Completada";
-    case "cancelled":
+    case BookingStatus.CANCELLED:
       return "Cancelada";
+    case BookingStatus.IN_PROGRESS:
+      return "En Progreso";
     default:
       return "Desconocido";
   }
@@ -150,31 +86,126 @@ export default function BookingsPage() {
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  // Get user role to determine which bookings to show
+  const { isProfessional, user } = useUserRole();
 
-  const filteredBookings = MOCK_BOOKINGS.filter((booking) => {
-    const matchesTab = 
-      activeTab === "all" ||
-      (activeTab === "upcoming" && ["confirmed", "pending"].includes(booking.status) && booking.date > new Date()) ||
-      (activeTab === "today" && format(booking.date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")) ||
-      (activeTab === "completed" && booking.status === "completed");
-
-    const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
-    
-    const matchesSearch = 
-      booking.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.location.toLowerCase().includes(searchTerm.toLowerCase());
-
-    return matchesTab && matchesStatus && matchesSearch;
+  // Fetch bookings based on user role
+  const { 
+    data: clientBookingsData, 
+    isLoading: isLoadingClient, 
+    error: clientError 
+  } = useUserBookings({
+    filters: filterStatus !== "all" ? { status: [filterStatus as BookingStatus] } : undefined
   });
 
-  const upcomingBookings = MOCK_BOOKINGS.filter(b => 
-    ["confirmed", "pending"].includes(b.status) && b.date > new Date()
+  const { 
+    data: professionalBookingsData, 
+    isLoading: isLoadingProfessional, 
+    error: professionalError 
+  } = useProfessionalBookings({
+    filters: filterStatus !== "all" ? { status: [filterStatus as BookingStatus] } : undefined
+  });
+
+  // Determine which data to use
+  const bookingsData = isProfessional ? professionalBookingsData : clientBookingsData;
+  const isLoading = isProfessional ? isLoadingProfessional : isLoadingClient;
+  const error = isProfessional ? professionalError : clientError;
+  const bookings = bookingsData?.bookings || [];
+
+  // Filter bookings based on active tab and search
+  const getFilteredBookings = () => {
+    if (!bookings) return [];
+    
+    return bookings.filter((booking) => {
+      const bookingDate = new Date(booking.scheduledAt);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const matchesTab = 
+        activeTab === "all" ||
+        (activeTab === "upcoming" && [BookingStatus.CONFIRMED, BookingStatus.PENDING].includes(booking.status) && bookingDate > new Date()) ||
+        (activeTab === "today" && format(bookingDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) ||
+        (activeTab === "completed" && booking.status === BookingStatus.COMPLETED);
+
+      const matchesSearch = 
+        (isProfessional ? booking.client.name : booking.professional.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.service.title.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchesTab && matchesSearch;
+    });
+  };
+
+  const filteredBookings = getFilteredBookings();
+  // Calculate stats
+  const upcomingBookings = bookings.filter(b => 
+    [BookingStatus.CONFIRMED, BookingStatus.PENDING].includes(b.status) && new Date(b.scheduledAt) > new Date()
   );
 
-  const todayBookings = MOCK_BOOKINGS.filter(b => 
-    format(b.date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
+  const todayBookings = bookings.filter(b => 
+    format(new Date(b.scheduledAt), "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-64" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-32" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Error al cargar las reservas: {error.message}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="text-center py-12">
+              <h3 className="text-lg font-medium mb-2">
+                Acceso requerido
+              </h3>
+              <p className="text-foreground/60 mb-4">
+                Debes iniciar sesión para ver tus reservas
+              </p>
+              <Button asChild>
+                <a href="/auth/login">Iniciar Sesión</a>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -337,15 +368,13 @@ export default function BookingsPage() {
                 <Clock className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
-          </Card>
-
-          <Card>
+          </Card>          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground/60">Completadas</p>
                   <p className="text-2xl font-bold">
-                    {MOCK_BOOKINGS.filter(b => b.status === "completed").length}
+                    {bookings.filter(b => b.status === BookingStatus.COMPLETED).length}
                   </p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-500" />
@@ -357,8 +386,8 @@ export default function BookingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-foreground/60">Ingresos del Mes</p>
-                  <p className="text-2xl font-bold">$560K</p>
+                  <p className="text-sm font-medium text-foreground/60">Total</p>
+                  <p className="text-2xl font-bold">{bookings.length}</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-emerald-500" />
               </div>
@@ -399,25 +428,23 @@ export default function BookingsPage() {
                   </Select>
                 </div>
 
-                <Separator />
-
-                <div>
+                <Separator />                <div>
                   <h4 className="text-sm font-medium mb-3">Estadísticas</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Total reservas:</span>
-                      <Badge variant="secondary">{MOCK_BOOKINGS.length}</Badge>
+                      <Badge variant="secondary">{bookings.length}</Badge>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Pendientes:</span>
                       <Badge variant="outline">
-                        {MOCK_BOOKINGS.filter(b => b.status === "pending").length}
+                        {bookings.filter(b => b.status === BookingStatus.PENDING).length}
                       </Badge>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Confirmadas:</span>
                       <Badge className="bg-green-100 text-green-700">
-                        {MOCK_BOOKINGS.filter(b => b.status === "confirmed").length}
+                        {bookings.filter(b => b.status === BookingStatus.CONFIRMED).length}
                       </Badge>
                     </div>
                   </div>
@@ -440,23 +467,26 @@ export default function BookingsPage() {
                 </Tabs>
               </CardHeader>
               <CardContent>
-                {filteredBookings.length > 0 ? (                  <div className="space-y-4">
-                    {filteredBookings.map((booking) => {
+                {filteredBookings.length > 0 ? (                  <div className="space-y-4">                    {filteredBookings.map((booking) => {
+                      // Determine which person to display based on user role
+                      const otherPerson = isProfessional ? booking.client : booking.professional;
+                      const bookingDate = new Date(booking.scheduledAt);
+                      
                       return (
                         <Card key={booking.id} className="hover:shadow-md transition-shadow">
                           <CardContent className="p-6">
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex items-start gap-4">
                                 <Avatar className="h-12 w-12">
-                                  <AvatarImage src={booking.client.avatar} />
+                                  <AvatarImage src={otherPerson.avatar} />
                                   <AvatarFallback>
-                                    {booking.client.name.split(" ").map(n => n[0]).join("")}
+                                    {otherPerson.name.split(" ").map(n => n[0]).join("")}
                                   </AvatarFallback>
                                 </Avatar>
                                 
                                 <div>
                                   <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold">{booking.client.name}</h3>
+                                    <h3 className="font-semibold">{otherPerson.name}</h3>
                                     <Badge className={getStatusColor(booking.status)}>
                                       {getStatusLabel(booking.status)}
                                     </Badge>
@@ -467,15 +497,15 @@ export default function BookingsPage() {
                                   <div className="flex items-center gap-4 text-sm text-foreground/60">
                                     <div className="flex items-center gap-1">
                                       <CalendarIcon className="h-3 w-3" />
-                                      <span>{format(booking.date, "PPP", { locale: es })}</span>
+                                      <span>{format(bookingDate, "PPP", { locale: es })}</span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      <span>{format(booking.date, "p", { locale: es })}</span>
+                                      <span>{format(bookingDate, "p", { locale: es })}</span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <DollarSign className="h-3 w-3" />
-                                      <span>{booking.service.price}</span>
+                                      <span>${booking.totalPrice}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -497,12 +527,16 @@ export default function BookingsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               <div>
                                 <div className="flex items-start gap-2 mb-2">
-                                  <MapPin className="h-4 w-4 text-foreground/60 mt-0.5" />
-                                  <span className="text-foreground/70">{booking.location}</span>
+                                  <CalendarIcon className="h-4 w-4 text-foreground/60 mt-0.5" />
+                                  <span className="text-foreground/70">
+                                    Duración: {booking.duration} minutos
+                                  </span>
                                 </div>
                                 <div className="flex items-start gap-2">
                                   <User className="h-4 w-4 text-foreground/60 mt-0.5" />
-                                  <span className="text-foreground/70">{booking.description}</span>
+                                  <span className="text-foreground/70">
+                                    Categoría: {booking.service.category.name}
+                                  </span>
                                 </div>
                               </div>
                               
@@ -514,7 +548,7 @@ export default function BookingsPage() {
                               )}
                             </div>
 
-                            {booking.status === "pending" && (
+                            {booking.status === BookingStatus.PENDING && (
                               <div className="flex gap-2 mt-4 pt-4 border-t">
                                 <Button size="sm" className="flex-1">
                                   Confirmar
@@ -528,7 +562,7 @@ export default function BookingsPage() {
                               </div>
                             )}
 
-                            {booking.status === "confirmed" && booking.date <= new Date() && (
+                            {booking.status === BookingStatus.CONFIRMED && bookingDate <= new Date() && (
                               <div className="flex gap-2 mt-4 pt-4 border-t">
                                 <Button size="sm" className="flex-1">
                                   Marcar como Completada

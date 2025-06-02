@@ -9,8 +9,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const professional = await prisma.professional.findUnique({
-      where: { userId: id },
+    
+    // Try to find professional by professional ID first, then by user ID
+    let professional = await prisma.professional.findUnique({
+      where: { id: id },
       include: {
         user: {
           select: {
@@ -47,6 +49,48 @@ export async function GET(
         },
       },
     });
+
+    // If not found by professional ID, try by user ID (for backward compatibility)
+    if (!professional) {
+      professional = await prisma.professional.findUnique({
+        where: { userId: id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+              createdAt: true,
+            },
+          },
+          services: {
+            where: { isActive: true },
+            include: {
+              category: true,
+              _count: {
+                select: {
+                  bookings: {
+                    where: { status: 'COMPLETED' }
+                  }
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+          availability: {
+            orderBy: { dayOfWeek: 'asc' },
+          },
+          _count: {
+            select: {
+              services: {
+                where: { isActive: true },
+              },
+            },
+          },
+        },
+      });
+    }
 
     if (!professional) {
       return NextResponse.json(

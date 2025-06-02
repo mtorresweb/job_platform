@@ -20,7 +20,6 @@
 - **Sin backend funcional:** Todas las operaciones son estáticas
 - **Sin base de datos:** Datos hardcodeados en el código
 - **Sin sistema de autenticación real**
-- **Sin integración de pagos funcional**
 - **Sin comunicación real entre usuarios**
 
 ---
@@ -45,12 +44,6 @@
 
 ### **ACCIÓN PRIORITARIA #1: Fundamentos Técnicos** ⚡
 ```bash
-# Configurar base de datos
-npm install prisma @prisma/client
-npx prisma init
-
-# Sistema de autenticación
-npm install next-auth
 
 # Manejo de formularios
 npm install react-hook-form zod @hookform/resolvers

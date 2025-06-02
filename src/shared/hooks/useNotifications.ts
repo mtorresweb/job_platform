@@ -53,7 +53,7 @@ export function useNotifications(params: {
         queryParams.append('unreadOnly', 'true');
       }
       
-      const response = await apiClient.get(`${ROUTES.api.notifications}?${queryParams.toString()}`);
+      const response = await apiClient.get(`/notifications?${queryParams.toString()}`);
       return response.data;
     },
   });
@@ -64,7 +64,7 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: NOTIFICATION_QUERY_KEYS.unreadCount,
     queryFn: async () => {
-      const response = await apiClient.get(`${ROUTES.api.notifications}?unreadOnly=true&limit=1`);
+      const response = await apiClient.get(`/notifications?unreadOnly=true&limit=1`);
       return (response.data as { data?: { total?: number } })?.data?.total || 0;
     },
     // Lower staleTime since this changes frequently
@@ -79,7 +79,7 @@ export function useMarkNotificationAsRead() {
   
   return useMutation({
     mutationFn: async (notificationId: string) => {
-      const response = await apiClient.put(`${ROUTES.api.notifications}/${notificationId}`);
+      const response = await apiClient.put(`/notifications/${notificationId}`);
       
       // Also inform the socket server
       socketClient.markNotificationRead(notificationId);
