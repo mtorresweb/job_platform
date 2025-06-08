@@ -14,7 +14,6 @@ import {
   Calendar,
   Star,
   Clock,
-  DollarSign,
   CheckCheck,
   User,
   ShieldCheck,
@@ -32,16 +31,12 @@ import {
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case "MESSAGE_RECEIVED":
-      return <MessageSquare className="h-4 w-4" />;
-    case "BOOKING_CONFIRMED":
+      return <MessageSquare className="h-4 w-4" />;    case "BOOKING_CONFIRMED":
     case "BOOKING_CANCELLED":
     case "BOOKING_REMINDER":
       return <Calendar className="h-4 w-4" />;
     case "REVIEW_RECEIVED":
       return <Star className="h-4 w-4" />;
-    case "PAYMENT_RECEIVED":
-    case "PAYMENT_PROCESSED":
-      return <DollarSign className="h-4 w-4" />;
     case "SYSTEM_NOTIFICATION":
       return <Bell className="h-4 w-4" />;
     case "REMINDER":

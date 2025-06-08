@@ -71,7 +71,6 @@ model Professional {
   reviewCount  Int     @default(0)
   isVerified   Boolean @default(false)
   specialties  String[] // array de especialidades
-  hourlyRate   Float?
   
   // Ubicación
   address      String?
@@ -133,8 +132,8 @@ model Service {
   description    String
   categoryId     String
   professionalId String
-  price          Float
   duration       Int             // en minutos
+  price          Float           @default(0.0) // precio del servicio
   images         String[]        // URLs de imágenes
   tags           String[]        // etiquetas para búsqueda
   isActive       Boolean         @default(true)
@@ -165,7 +164,7 @@ model Booking {
   status         BookingStatus @default(PENDING)
   scheduledAt    DateTime
   duration       Int           // en minutos
-  totalPrice     Float         // Precio total - 100% para el profesional (sin comisión)
+  totalPrice     Float         @default(0.0) // precio total del servicio
   notes          String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

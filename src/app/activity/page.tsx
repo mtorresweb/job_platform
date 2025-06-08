@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,111 +20,228 @@ import {
   ChevronRight,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { format, subDays, isToday, isYesterday } from "date-fns";
+import { format, subDays, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
-// Mock activity data
-const activities = [
-  {
-    id: 1,
-    type: "booking_completed",
-    title: "Trabajo completado",
-    description: "Diseño de logo para TechStart",
-    amount: 150,
-    client: "Carlos Méndez",
-    timestamp: new Date(),
-    status: "completed"
-  },
-  {
-    id: 2,
-    type: "review_received",
-    title: "Nueva reseña recibida",
-    description: "Calificación de 5 estrellas de Ana López",
-    rating: 5,
-    client: "Ana López",
-    timestamp: subDays(new Date(), 1),
-    status: "positive"
-  },
-  {
-    id: 3,
-    type: "message_received",
-    title: "Nuevo mensaje",
-    description: "Consulta sobre servicios de branding",
-    client: "María González",
-    timestamp: subDays(new Date(), 2),
-    status: "unread"
-  },
-  {
-    id: 4,
-    type: "booking_confirmed",
-    title: "Reserva confirmada",
-    description: "Sesión de diseño web - 15 Jun 2025",
-    client: "Pedro Ruiz",
-    timestamp: subDays(new Date(), 3),
-    status: "confirmed"
-  },
-  {
-    id: 5,
-    type: "payment_received",
-    title: "Pago recibido",
-    description: "Factura #1234 - Proyecto finalizado",
-    amount: 300,
-    client: "Innovate Corp",
-    timestamp: subDays(new Date(), 5),
-    status: "completed"
-  },
-  {
-    id: 6,
-    type: "profile_updated",
-    title: "Perfil actualizado",
-    description: "Información profesional modificada",
-    timestamp: subDays(new Date(), 7),
-    status: "info"
-  },
-  {
-    id: 7,
-    type: "new_follower",
-    title: "Nuevo seguidor",
-    description: "Laura Sánchez comenzó a seguirte",
-    client: "Laura Sánchez",
-    timestamp: subDays(new Date(), 10),
-    status: "positive"
-  },
-  {
-    id: 8,
-    type: "booking_cancelled",
-    title: "Reserva cancelada",
-    description: "Sesión de consultoría - Cliente canceló",
-    client: "Miguel Torres",
-    timestamp: subDays(new Date(), 12),
-    status: "cancelled"
-  }
-];
+// Import real API hooks
+import { useNotifications } from "@/shared/hooks/useNotifications";
+import { useUserBookings, useProfessionalBookings } from "@/shared/hooks/useBookings";
+import { useUserRole } from "@/infrastructure/auth/auth-client";
 
-// Statistics data
-const stats = {
-  thisWeek: {
-    bookings: 5,
-    earnings: 750,
-    messages: 12,
-    reviews: 3,
-    avgRating: 4.8
-  },
-  lastWeek: {
-    bookings: 3,
-    earnings: 450,
-    messages: 8,
-    reviews: 2,
-    avgRating: 4.7
-  }
-};
-
-export default function ActivityPage() {
+// Define activity types for unified display
+interface ActivityItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  timestamp: Date;
+  status: string;
+  amount?: number;
+  client?: string;
+  rating?: number;
+  metadata?: Record<string, unknown>;
+}export default function ActivityPage() {
   const [filter, setFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  // Get current user to determine role
+  const { isProfessional } = useUserRole();
+  // Fetch data from real APIs
+  const { data: notificationsData, isLoading: isLoadingNotifications, error: notificationsError } = useNotifications({ 
+    limit: 50, 
+    page: 1 
+  });
+  
+  const { data: userBookingsData, isLoading: isLoadingUserBookings, error: userBookingsError } = useUserBookings({ 
+    limit: 20, 
+    page: 1 
+  });
+  
+  const { data: professionalBookingsData, isLoading: isLoadingProfessionalBookings, error: professionalBookingsError } = useProfessionalBookings({ 
+    limit: 20, 
+    page: 1 
+  });
+
+  // Calculate loading state
+  const isLoading = isLoadingNotifications || 
+    (isProfessional ? isLoadingProfessionalBookings : isLoadingUserBookings);
+
+  // Calculate error state
+  const error = notificationsError || 
+    (isProfessional ? professionalBookingsError : userBookingsError);
+
+  // Transform real data into unified activity items
+  const activities = useMemo(() => {
+    const items: ActivityItem[] = [];    // Add notifications as activities
+    const notifications = Array.isArray(notificationsData) ? notificationsData : [];
+    notifications.forEach((notification: { 
+      id: string; 
+      type: string; 
+      title: string; 
+      message: string; 
+      createdAt: string | Date; 
+      isRead: boolean; 
+      metadata?: Record<string, unknown>; 
+      user?: { name: string }; 
+    }) => {
+      const timestamp = typeof notification.createdAt === 'string' 
+        ? parseISO(notification.createdAt) 
+        : new Date(notification.createdAt);
+
+      items.push({
+        id: `notification-${notification.id}`,
+        type: getActivityTypeFromNotification(notification.type),
+        title: notification.title,
+        description: notification.message,
+        timestamp,
+        status: notification.isRead ? "read" : "unread",
+        rating: notification.metadata?.rating as number,
+        amount: notification.metadata?.amount as number,
+        client: notification.user?.name,
+        metadata: notification.metadata
+      });
+    });    // Add bookings as activities
+    const bookings = isProfessional 
+      ? (professionalBookingsData?.bookings || [])
+      : (userBookingsData?.bookings || []);
+
+    bookings.forEach((booking) => {
+      const timestamp = typeof booking.createdAt === 'string' 
+        ? parseISO(booking.createdAt) 
+        : new Date(booking.createdAt);
+
+      items.push({
+        id: `booking-${booking.id}`,
+        type: getActivityTypeFromBookingStatus(booking.status),
+        title: getBookingTitle(booking.status),        description: `${booking.service?.title || 'Servicio'} - ${booking.client?.name || booking.professional?.name || 'Cliente'}`,
+        timestamp,
+        status: booking.status.toLowerCase(),
+        client: isProfessional ? booking.client?.name : booking.professional?.name,
+        metadata: { bookingId: booking.id, serviceTitle: booking.service?.title }
+      });
+    });
+
+    // Sort by timestamp (newest first)
+    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }, [notificationsData, userBookingsData, professionalBookingsData, isProfessional]);
+
+  // Calculate stats from real data
+  const stats = useMemo(() => {
+    const thisWeekStart = subDays(new Date(), 7);
+    const lastWeekStart = subDays(new Date(), 14);
+    
+    const thisWeekActivities = activities.filter(a => a.timestamp >= thisWeekStart);
+    const lastWeekActivities = activities.filter(a => 
+      a.timestamp >= lastWeekStart && a.timestamp < thisWeekStart
+    );
+
+    const thisWeekBookings = thisWeekActivities.filter(a => a.type.includes('booking')).length;
+    const lastWeekBookings = lastWeekActivities.filter(a => a.type.includes('booking')).length;
+
+    const thisWeekEarnings = thisWeekActivities
+      .filter(a => a.amount && a.status === 'completed')
+      .reduce((sum, a) => sum + (a.amount || 0), 0);
+    
+    const lastWeekEarnings = lastWeekActivities
+      .filter(a => a.amount && a.status === 'completed')
+      .reduce((sum, a) => sum + (a.amount || 0), 0);
+
+    const thisWeekMessages = thisWeekActivities.filter(a => a.type === 'message_received').length;
+    const lastWeekMessages = lastWeekActivities.filter(a => a.type === 'message_received').length;
+
+    const thisWeekReviews = thisWeekActivities.filter(a => a.type === 'review_received').length;
+    const lastWeekReviews = lastWeekActivities.filter(a => a.type === 'review_received').length;
+
+    const thisWeekRatings = thisWeekActivities
+      .filter(a => a.rating)
+      .map(a => a.rating!)
+      .filter(r => r > 0);
+    const avgRating = thisWeekRatings.length > 0 
+      ? thisWeekRatings.reduce((sum, r) => sum + r, 0) / thisWeekRatings.length 
+      : 0;
+
+    const lastWeekRatings = lastWeekActivities
+      .filter(a => a.rating)
+      .map(a => a.rating!)
+      .filter(r => r > 0);
+    const lastWeekAvgRating = lastWeekRatings.length > 0 
+      ? lastWeekRatings.reduce((sum, r) => sum + r, 0) / lastWeekRatings.length 
+      : 0;
+
+    return {
+      thisWeek: {
+        bookings: thisWeekBookings,
+        earnings: thisWeekEarnings,
+        messages: thisWeekMessages,
+        reviews: thisWeekReviews,
+        avgRating: Number(avgRating.toFixed(1))
+      },
+      lastWeek: {
+        bookings: lastWeekBookings,
+        earnings: lastWeekEarnings,
+        messages: lastWeekMessages,
+        reviews: lastWeekReviews,
+        avgRating: Number(lastWeekAvgRating.toFixed(1))
+      }
+    };
+  }, [activities]);
+
+  // Helper functions
+  function getActivityTypeFromNotification(notificationType: string): string {
+    switch (notificationType) {
+      case 'MESSAGE_RECEIVED':
+        return 'message_received';
+      case 'BOOKING_CONFIRMED':
+        return 'booking_confirmed';
+      case 'BOOKING_CANCELLED':
+        return 'booking_cancelled';
+      case 'REVIEW_RECEIVED':
+        return 'review_received';      case 'SERVICE_COMPLETED':
+        return 'service_completed';
+      case 'BOOKING_CONFIRMED':
+        return 'booking_confirmed';
+      case 'PROFILE_VERIFIED':
+        return 'profile_updated';
+      case 'ACCOUNT_UPDATE':
+        return 'profile_updated';
+      default:
+        return 'system_notification';
+    }
+  }
+
+  function getActivityTypeFromBookingStatus(status: string): string {
+    switch (status) {
+      case 'COMPLETED':
+        return 'booking_completed';
+      case 'CONFIRMED':
+        return 'booking_confirmed';
+      case 'CANCELLED':
+        return 'booking_cancelled';
+      case 'PENDING':
+        return 'booking_pending';
+      default:
+        return 'booking_updated';
+    }
+  }
+
+  function getBookingTitle(status: string): string {
+    switch (status) {
+      case 'COMPLETED':
+        return 'Trabajo completado';
+      case 'CONFIRMED':
+        return 'Reserva confirmada';
+      case 'CANCELLED':
+        return 'Reserva cancelada';
+      case 'PENDING':
+        return 'Reserva pendiente';
+      default:
+        return 'Reserva actualizada';
+    }
+  }
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -135,9 +251,8 @@ export default function ActivityPage() {
       case "review_received":
         return <Star className="h-4 w-4" />;
       case "message_received":
-        return <MessageCircle className="h-4 w-4" />;
-      case "payment_received":
-        return <CreditCard className="h-4 w-4" />;
+        return <MessageCircle className="h-4 w-4" />;      case "service_completed":
+        return <Calendar className="h-4 w-4" />;
       case "new_follower":
         return <UserPlus className="h-4 w-4" />;
       case "booking_cancelled":
@@ -223,6 +338,30 @@ export default function ActivityPage() {
         </p>
       </div>
 
+      {/* Error State */}
+      {error && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              <span>Error al cargar los datos: {(error as Error)?.message || 'Error desconocido'}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Cargando actividades...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="activity" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="activity" className="flex items-center gap-2">
@@ -261,11 +400,10 @@ export default function ActivityPage() {
                     <SelectValue placeholder="Tipo de actividad" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas las actividades</SelectItem>
-                    <SelectItem value="booking">Reservas</SelectItem>
+                    <SelectItem value="all">Todas las actividades</SelectItem>                    <SelectItem value="booking">Reservas</SelectItem>
                     <SelectItem value="review">Reseñas</SelectItem>
                     <SelectItem value="message">Mensajes</SelectItem>
-                    <SelectItem value="payment">Pagos</SelectItem>
+                    <SelectItem value="service">Servicios</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={timeFilter} onValueChange={setTimeFilter}>

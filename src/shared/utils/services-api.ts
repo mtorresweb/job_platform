@@ -22,7 +22,6 @@ export interface Service {
   description: string;
   categoryId: string;
   professionalId: string;
-  price: number;
   duration: number;
   images: string[];
   tags: string[];
@@ -51,7 +50,6 @@ export interface CreateServiceData {
   title: string;
   description: string;
   categoryId: string;
-  price: number;
   duration: number;
   images?: string[];
   tags?: string[];
@@ -64,8 +62,6 @@ export interface UpdateServiceData extends Partial<CreateServiceData> {
 
 export interface ServiceSearchFilters {
   categoryId?: string;
-  minPrice?: number;
-  maxPrice?: number;
   duration?: number;
   rating?: number;
   location?: string;

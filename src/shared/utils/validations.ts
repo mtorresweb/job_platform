@@ -10,7 +10,7 @@ import {
   MessageType,
   NotificationType,
 } from "../types";
-import { PRICE_CONFIG, TIME_CONFIG, FILE_CONFIG } from "../constants";
+import { TIME_CONFIG, FILE_CONFIG } from "../constants";
 
 // ==========================================
 // ESQUEMAS BASE
@@ -51,12 +51,6 @@ const phoneSchema = z
   .string()
   .regex(/^(\+57|57)?[1-9]\d{9}$/, "Formato de teléfono inválido")
   .optional();
-
-// Validación de precio
-const priceSchema = z
-  .number()
-  .min(PRICE_CONFIG.minPrice, `El precio mínimo es $${PRICE_CONFIG.minPrice}`)
-  .max(PRICE_CONFIG.maxPrice, `El precio máximo es $${PRICE_CONFIG.maxPrice}`);
 
 // ==========================================
 // ESQUEMAS DE AUTENTICACIÓN
@@ -134,7 +128,6 @@ export const professionalProfileSchema = z.object({
     .array(z.string())
     .min(1, "Debe seleccionar al menos una especialidad")
     .max(10, "Máximo 10 especialidades"),
-  hourlyRate: priceSchema.optional(),
   address: z.string().max(200, "Dirección demasiado larga").optional(),
   city: z.string().max(50, "Ciudad demasiado larga").optional(),
   state: z.string().max(50, "Estado demasiado largo").optional(),
@@ -178,7 +171,6 @@ export const serviceSchema = z.object({
     .min(20, "La descripción debe tener al menos 20 caracteres")
     .max(1000, "La descripción es demasiado larga"),
   categoryId: z.string().cuid("ID de categoría inválido"),
-  price: priceSchema,
   duration: z
     .number()
     .min(
@@ -330,8 +322,7 @@ export const notificationSchema = z.object({
 export const searchParamsSchema = z.object({
   query: z.string().max(100, "Búsqueda demasiado larga").optional(),
   category: z.string().optional(),
-  priceMin: z.coerce.number().min(0).optional(),
-  priceMax: z.coerce.number().min(0).optional(),
+  priceMin: z.coerce.number().min(0).optional(),  priceMax: z.coerce.number().min(0).optional(),
   rating: z.coerce.number().min(1).max(5).optional(),
   location: z.string().max(100).optional(),
   availability: z.coerce.boolean().optional(),

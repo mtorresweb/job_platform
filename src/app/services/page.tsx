@@ -64,8 +64,6 @@ export default function ServicesPage() {
         return (b.professional?.rating || 0) - (a.professional?.rating || 0);
       case "reviews":
         return (b.professional?.reviewCount || 0) - (a.professional?.reviewCount || 0);
-      case "price":
-        return a.price - b.price;
       default:
         return 0;
     }
@@ -191,11 +189,9 @@ export default function ServicesPage() {
                 <SelectTrigger className="w-48">
                   <SortAsc className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Ordenar por" />
-                </SelectTrigger>
-                <SelectContent>
+                </SelectTrigger>                <SelectContent>
                   <SelectItem value="rating">Mejor calificación</SelectItem>
                   <SelectItem value="reviews">Más reseñas</SelectItem>
-                  <SelectItem value="price">Precio</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -305,12 +301,9 @@ export default function ServicesPage() {
                             {tag}
                           </Badge>
                         ))}
-                      </div>
-
-                      {/* Price and Action */}
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="font-bold text-lg text-primary">
-                          ${service.price.toLocaleString()}
+                      </div>                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-sm text-foreground/60">
+                          {Math.floor(service.duration / 60)}h {service.duration % 60}min
                         </span>
                         <Button size="sm" asChild>
                           <Link href={`/services/${service.id}`}>
@@ -367,11 +360,9 @@ export default function ServicesPage() {
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             )}
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <span className="font-bold text-xl text-primary">
-                            ${service.price.toLocaleString()}
+                        </div>                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-foreground/60">
+                            {Math.floor(service.duration / 60)}h {service.duration % 60}min
                           </span>
                           <Button asChild>
                             <Link href={`/services/${service.id}`}>

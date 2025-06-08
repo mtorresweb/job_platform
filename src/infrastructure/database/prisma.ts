@@ -41,7 +41,9 @@ if (process.env.NODE_ENV !== "production") {
 export const connectDatabase = async () => {
   try {
     await prisma.$connect();
-    console.log("✅ Conectado a la base de datos");
+    if (process.env.NODE_ENV === "development") {
+      console.log("✅ Conectado a la base de datos");
+    }
   } catch (error) {
     console.error("❌ Error conectando a la base de datos:", error);
     throw error;
@@ -54,7 +56,9 @@ export const connectDatabase = async () => {
 export const disconnectDatabase = async () => {
   try {
     await prisma.$disconnect();
-    console.log("✅ Desconectado de la base de datos");
+    if (process.env.NODE_ENV === "development") {
+      console.log("✅ Desconectado de la base de datos");
+    }
   } catch (error) {
     console.error("❌ Error desconectando de la base de datos:", error);
     throw error;
@@ -110,14 +114,15 @@ export const cleanupExpiredData = async () => {
         createdAt: {
           lt: oneYearAgo,
         },
-      },
-    });
+      },    });
 
-    console.log(`✅ Limpieza completada:`, {
-      expiredUsers: expiredUsers.count,
-      expiredNotifications: expiredNotifications.count,
-      oldLogs: oldLogs.count,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log(`✅ Limpieza completada:`, {
+        expiredUsers: expiredUsers.count,
+        expiredNotifications: expiredNotifications.count,
+        oldLogs: oldLogs.count,
+      });
+    }
 
     return {
       success: true,

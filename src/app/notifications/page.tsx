@@ -21,8 +21,8 @@ import {
   Bell,
   MessageSquare,
   Calendar,
-  Star,  Clock,
-  DollarSign,
+  Star,
+  Clock,
   Trash2,
   Check,
   User,
@@ -42,15 +42,11 @@ const getNotificationIcon = (type: string) => {
   switch (type) {
     case "MESSAGE_RECEIVED":
       return MessageSquare;
-    case "BOOKING_CONFIRMED":
-    case "BOOKING_CANCELLED":
+    case "BOOKING_CONFIRMED":    case "BOOKING_CANCELLED":
     case "BOOKING_REMINDER":
       return Calendar;
     case "REVIEW_RECEIVED":
       return Star;
-    case "PAYMENT_RECEIVED":
-    case "PAYMENT_PROCESSED":
-      return DollarSign;
     case "SYSTEM_NOTIFICATION":
       return Bell;
     case "REMINDER":
@@ -77,10 +73,9 @@ const getNotificationColor = (type: string) => {
     case "BOOKING_REMINDER":
       return "text-orange-500";
     case "REVIEW_RECEIVED":
-      return "text-yellow-500";
-    case "PAYMENT_RECEIVED":
-    case "PAYMENT_PROCESSED":
-      return "text-emerald-500";
+      return "text-yellow-500";    case "SERVICE_COMPLETED":
+    case "BOOKING_CONFIRMED":
+      return "text-green-500";
     case "SYSTEM_NOTIFICATION":
       return "text-gray-500";
     case "REMINDER":
@@ -99,8 +94,7 @@ const getNotificationColor = (type: string) => {
 const getNotificationCategory = (type: string) => {
   if (type.includes("MESSAGE")) return "messages";
   if (type.includes("BOOKING")) return "bookings";
-  if (type.includes("REVIEW")) return "reviews";
-  if (type.includes("PAYMENT")) return "payments";
+  if (type.includes("REVIEW")) return "reviews";  if (type.includes("SERVICE")) return "services";
   if (type === "REMINDER") return "reminders";
   if (type.includes("PROFILE") || type.includes("ACCOUNT")) return "accounts";
   return "system";
@@ -171,11 +165,10 @@ export default function NotificationsPage() {
   // Calculate category counts
   const categoryCounts = {
     all: notifications.length,
-    unread: notifications.filter((n: Notification) => !n.isRead).length,
-    messages: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "messages").length,
+    unread: notifications.filter((n: Notification) => !n.isRead).length,    messages: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "messages").length,
     bookings: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "bookings").length,
     reviews: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "reviews").length,
-    payments: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "payments").length,
+    services: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "services").length,
     reminders: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "reminders").length,
     accounts: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "accounts").length,
     system: notifications.filter((n: Notification) => getNotificationCategory(n.type) === "system").length,
@@ -265,11 +258,10 @@ export default function NotificationsPage() {
                         key: "reviews",
                         label: "Reseñas",
                         count: categoryCounts.reviews
-                      },
-                      {
-                        key: "payments",
-                        label: "Pagos",
-                        count: categoryCounts.payments
+                      },                      {
+                        key: "services",
+                        label: "Servicios",
+                        count: categoryCounts.services
                       },
                       {
                         key: "reminders",
@@ -319,7 +311,7 @@ export default function NotificationsPage() {
                     {activeTab === "messages" && "Mensajes"}
                     {activeTab === "bookings" && "Reservas"}
                     {activeTab === "reviews" && "Reseñas"}
-                    {activeTab === "payments" && "Pagos"}
+                    {activeTab === "services" && "Servicios"}
                     {activeTab === "reminders" && "Recordatorios"}
                     {activeTab === "accounts" && "Cuenta"}
                     {activeTab === "system" && "Sistema"}
@@ -403,9 +395,8 @@ export default function NotificationsPage() {
                                     {notification.type === "BOOKING_CONFIRMED" && "Reserva confirmada"}
                                     {notification.type === "BOOKING_CANCELLED" && "Reserva cancelada"}
                                     {notification.type === "BOOKING_REMINDER" && "Recordatorio"}
-                                    {notification.type === "REVIEW_RECEIVED" && "Reseña"}
-                                    {notification.type === "PAYMENT_RECEIVED" && "Pago recibido"}
-                                    {notification.type === "PAYMENT_PROCESSED" && "Pago procesado"}
+                                    {notification.type === "REVIEW_RECEIVED" && "Reseña"}                                    {notification.type === "SERVICE_COMPLETED" && "Servicio completado"}
+                                    {notification.type === "BOOKING_CONFIRMED" && "Reserva confirmada"}
                                     {notification.type === "SYSTEM_NOTIFICATION" && "Sistema"}
                                     {notification.type === "PROFILE_VERIFIED" && "Verificación"}
                                     {notification.type === "ACCOUNT_UPDATE" && "Cuenta"}

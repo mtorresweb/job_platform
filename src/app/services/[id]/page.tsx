@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-// import { useParams } from "next/navigation";
+import Image from "next/image";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
   Star,
@@ -21,147 +23,65 @@ import {
   FileText,
   Camera,
 } from "lucide-react";
-
-// Mock data - en el futuro vendrá de la API
-const MOCK_SERVICE_DETAIL = {
-  id: 1,
-  title: "Reparación de Electrodomésticos",
-  description:
-    "Servicio profesional de reparación de electrodomésticos con más de 10 años de experiencia. Especializado en lavadoras, neveras, estufas, microondas y pequeños electrodomésticos.",
-  longDescription: `
-    Ofrezco un servicio completo de reparación de electrodomésticos a domicilio con garantía de satisfacción. 
-    Mi experiencia de más de 10 años en el sector me permite diagnosticar y reparar eficientemente cualquier 
-    tipo de electrodoméstico.
-
-    **Servicios incluidos:**
-    - Diagnóstico gratuito a domicilio
-    - Reparación de lavadoras y secadoras
-    - Reparación de neveras y congeladores
-    - Reparación de estufas y hornos
-    - Reparación de microondas
-    - Mantenimiento preventivo
-    - Garantía de 6 meses en todas las reparaciones
-
-    **¿Por qué elegirme?**
-    - Más de 10 años de experiencia
-    - Técnico certificado
-    - Repuestos originales garantizados
-    - Servicio a domicilio sin costo adicional
-    - Atención los 7 días de la semana
-    - Presupuesto sin compromiso
-  `,
-  category: "Hogar",
-  price: "Desde $50.000",
-  priceDetails: {
-    diagnosis: "Gratuito",
-    minService: "$50.000",
-    hourlyRate: "$25.000/hora",
-    emergency: "$80.000 (fines de semana y festivos)",
-  },
-  location: "Bogotá, Colombia",
-  serviceArea: ["Bogotá", "Soacha", "Chía", "Zipaquirá"],
-  rating: 4.8,
-  reviewCount: 124,
-  completedJobs: 350,
-  responseTime: "2 horas",
-  availability: "Lunes a Domingo, 7:00 AM - 8:00 PM",
-  provider: {
-    id: 1,
-    name: "Carlos Méndez",
-    image: "/avatars/carlos.jpg",
-    verified: true,
-    memberSince: "2020",
-    specialties: ["Electrodomésticos", "Refrigeración", "Línea Blanca"],
-    languages: ["Español"],
-    phone: "+57 300 123 4567",
-    email: "carlos.mendez@servicespro.com",
-    bio: "Técnico especializado en reparación de electrodomésticos con certificación internacional. Más de 350 reparaciones exitosas y 10 años de experiencia en el sector.",
-  },
-  features: [
-    "Servicio a domicilio",
-    "Diagnóstico gratuito",
-    "Garantía de 6 meses",
-    "Repuestos originales",
-    "Técnico certificado",
-    "Atención 7 días",
-  ],
-  gallery: [
-    "/services/electrodomesticos-1.jpg",
-    "/services/electrodomesticos-2.jpg",
-    "/services/electrodomesticos-3.jpg",
-    "/services/electrodomesticos-4.jpg",
-  ],
-  reviews: [
-    {
-      id: 1,
-      user: "María González",
-      avatar: "/avatars/maria.jpg",
-      rating: 5,
-      date: "2024-01-15",
-      comment:
-        "Excelente servicio. Carlos llegó puntual, diagnosticó el problema de mi lavadora rápidamente y la reparó el mismo día. Muy profesional y honesto con los precios.",
-      verified: true,
-    },
-    {
-      id: 2,
-      user: "Roberto Silva",
-      avatar: "/avatars/roberto.jpg",
-      rating: 5,
-      date: "2024-01-10",
-      comment:
-        "Muy satisfecho con el servicio. Mi nevera no estaba enfriando bien y Carlos la dejó como nueva. La garantía me da mucha tranquilidad.",
-      verified: true,
-    },
-    {
-      id: 3,
-      user: "Ana Martínez",
-      avatar: "/avatars/ana.jpg",
-      rating: 4,
-      date: "2024-01-05",
-      comment:
-        "Buen servicio técnico. Reparó mi estufa y explicó todo el proceso. Solo le doy 4 estrellas porque llegó 30 minutos tarde, pero avisó con anticipación.",
-      verified: true,
-    },
-  ],
-  faqs: [
-    {
-      question: "¿El diagnóstico tiene costo?",
-      answer:
-        "No, el diagnóstico es completamente gratuito. Solo pagas si decides continuar con la reparación.",
-    },
-    {
-      question: "¿Qué garantía ofrecen?",
-      answer:
-        "Ofrezco garantía de 6 meses en todas las reparaciones, cubriendo tanto mano de obra como repuestos.",
-    },
-    {
-      question: "¿Trabajan con todas las marcas?",
-      answer:
-        "Sí, trabajo con todas las marcas: LG, Samsung, Whirlpool, Electrolux, Haceb, Mabe, y muchas más.",
-    },
-    {
-      question: "¿Cuánto tiempo toma una reparación?",
-      answer:
-        "La mayoría de reparaciones se completan el mismo día. En casos complejos que requieren repuestos especiales, puede tomar 2-3 días.",
-    },
-  ],
-};
+import { useService } from "@/shared/hooks/useServices";
+import { useServiceReviews } from "@/shared/hooks/useReviews";
 
 export default function ServiceDetailPage() {
-  // const params = useParams();
+  const params = useParams();
+  const serviceId = params?.id as string;    const { data: service, isLoading: isLoadingService, error: serviceError } = useService(serviceId);
+  const { data: reviewsData } = useServiceReviews(serviceId);
+  
   const [activeTab, setActiveTab] = useState("overview");
 
-  // En el futuro, aquí cargaríamos el servicio real basado en params.id
-  const service = MOCK_SERVICE_DETAIL;
+  if (isLoadingService) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-custom py-8">
+          <div className="mb-6">
+            <Skeleton className="h-6 w-32 mb-4" />
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleContactProvider = () => {
-    // Aquí implementaríamos la lógica para contactar al proveedor
-    console.log("Contactar proveedor");
+  if (serviceError || !service) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Servicio no encontrado</h2>
+          <p className="text-foreground/60 mb-4">
+            El servicio que buscas no existe o ha sido eliminado.
+          </p>
+          <Button asChild>
+            <Link href="/services">Volver a servicios</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  const reviews = reviewsData?.reviews || [];  const handleContactProvider = () => {
+    if (!service?.professional?.user) return;
+    // Redirect to messaging page with professional
+    window.location.href = `/messages/new?professionalId=${service.professional.id}&name=${encodeURIComponent(service.professional.user.name)}&serviceId=${service.id}`;
   };
 
   const handleBookService = () => {
-    // Aquí implementaríamos la lógica para reservar el servicio
-    console.log("Reservar servicio");
+    if (!service?.professional) return;
+    // Redirect to booking page with pre-filled service data
+    window.location.href = `/book?serviceId=${service.id}&professionalId=${service.professional.id}`;
   };
 
   return (
@@ -176,9 +96,8 @@ export default function ServiceDetailPage() {
             <span>/</span>
             <Link href="/services" className="hover:text-primary">
               Servicios
-            </Link>
-            <span>/</span>
-            <span>{service.category}</span>
+            </Link>            <span>/</span>
+            <span>{service.category?.name || 'Servicios'}</span>
             <span>/</span>
             <span className="text-foreground">{service.title}</span>
           </div>
@@ -195,13 +114,11 @@ export default function ServiceDetailPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Volver a servicios
               </Link>
-            </Button>
-
-            {/* Service Header */}
+            </Button>            {/* Service Header */}
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
-                  <Badge variant="secondary">{service.category}</Badge>
+                  <Badge variant="secondary">{service.category?.name || 'Servicio'}</Badge>
                   <h1 className="text-3xl md:text-4xl font-bold">
                     {service.title}
                   </h1>
@@ -215,22 +132,22 @@ export default function ServiceDetailPage() {
               <div className="flex flex-wrap items-center gap-6 text-sm">
                 <div className="flex items-center gap-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{service.rating}</span>
+                  <span className="font-medium">{service.professional?.rating || 0}</span>
                   <span className="text-foreground/60">
-                    ({service.reviewCount} reseñas)
+                    ({service.professional?.reviewCount || 0} reseñas)
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>{service.completedJobs} trabajos completados</span>
+                  <span>{service.bookingCount || 0} trabajos completados</span>
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
                   <Clock className="h-4 w-4" />
-                  <span>Responde en {service.responseTime}</span>
+                  <span>Duración: {Math.floor(service.duration / 60)}h {service.duration % 60}min</span>
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
                   <MapPin className="h-4 w-4" />
-                  <span>{service.location}</span>
+                  <span>Ubicación no especificada</span>
                 </div>
               </div>
             </div>
@@ -242,9 +159,7 @@ export default function ServiceDetailPage() {
                 <TabsTrigger value="reviews">Reseñas</TabsTrigger>
                 <TabsTrigger value="gallery">Galería</TabsTrigger>
                 <TabsTrigger value="faq">FAQ</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-6">
+              </TabsList>              <TabsContent value="overview" className="space-y-6">
                 {/* Service Description */}
                 <Card>
                   <CardHeader>
@@ -255,52 +170,53 @@ export default function ServiceDetailPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="prose prose-sm max-w-none dark:prose-invert">
-                      {service.longDescription
-                        .split("\n")
-                        .map((paragraph, index) => (
-                          <p key={index} className="mb-4 text-foreground/80">
-                            {paragraph.trim()}
-                          </p>
+                      <p className="text-foreground/80">
+                        {service.description}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Service Tags */}
+                {service.tags && service.tags.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Etiquetas del Servicio</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {service.tags.map((tag: string, index: number) => (
+                          <Badge key={index} variant="outline">
+                            {tag}
+                          </Badge>
                         ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
-                {/* Features */}
+                {/* Service Details */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>¿Qué incluye este servicio?</CardTitle>
+                    <CardTitle>Detalles del Servicio</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {service.features.map((feature, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <span className="text-sm">{feature}</span>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="text-sm">Duración: {Math.floor(service.duration / 60)}h {service.duration % 60}min</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="text-sm">Categoría: {service.category?.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="text-sm">Profesional verificado: {service.professional?.isVerified ? 'Sí' : 'No'}</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Service Area */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Área de Cobertura</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {service.serviceArea.map((area, index) => (
-                        <Badge key={index} variant="outline">
-                          {area}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="reviews" className="space-y-6">
+              </TabsContent>              <TabsContent value="reviews" className="space-y-6">
                 {/* Reviews Summary */}
                 <Card>
                   <CardHeader>
@@ -310,14 +226,14 @@ export default function ServiceDetailPage() {
                     <div className="flex items-center gap-6 mb-6">
                       <div className="text-center">
                         <div className="text-3xl font-bold">
-                          {service.rating}
+                          {service.professional?.rating || 0}
                         </div>
                         <div className="flex items-center gap-1 mt-1">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
                               className={`h-4 w-4 ${
-                                i < Math.floor(service.rating)
+                                i < Math.floor(service.professional?.rating || 0)
                                   ? "fill-yellow-400 text-yellow-400"
                                   : "text-gray-300"
                               }`}
@@ -325,13 +241,12 @@ export default function ServiceDetailPage() {
                           ))}
                         </div>
                         <div className="text-sm text-foreground/60 mt-1">
-                          {service.reviewCount} reseñas
+                          {service.professional?.reviewCount || 0} reseñas
                         </div>
                       </div>
                       <div className="flex-1">
-                        {/* Rating Distribution would go here */}
                         <div className="text-sm text-foreground/60">
-                          Basado en {service.reviewCount} reseñas verificadas
+                          Basado en {service.professional?.reviewCount || 0} reseñas verificadas
                         </div>
                       </div>
                     </div>
@@ -340,62 +255,64 @@ export default function ServiceDetailPage() {
 
                     {/* Individual Reviews */}
                     <div className="space-y-6">
-                      {service.reviews.map((review) => (
-                        <div key={review.id} className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={review.avatar} />
-                              <AvatarFallback>
-                                {review.user
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium">
-                                  {review.user}
-                                </span>
-                                {review.verified && (
+                      {reviews && reviews.length > 0 ? (
+                        reviews.map((review: { id: string; rating: number; comment?: string; client: { name: string; avatar?: string }; createdAt: string }) => (
+                          <div key={review.id} className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={review.client?.avatar} />
+                                <AvatarFallback>
+                                  {review.client?.name
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium">
+                                    {review.client?.name}
+                                  </span>
                                   <Badge variant="outline" className="text-xs">
                                     <CheckCircle className="h-3 w-3 mr-1" />
                                     Verificado
                                   </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="flex items-center gap-1">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-3 w-3 ${
-                                        i < review.rating
-                                          ? "fill-yellow-400 text-yellow-400"
-                                          : "text-gray-300"
-                                      }`}
-                                    />
-                                  ))}
                                 </div>
-                                <span className="text-xs text-foreground/60">
-                                  {new Date(review.date).toLocaleDateString(
-                                    "es-ES",
-                                  )}
-                                </span>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-3 w-3 ${
+                                          i < review.rating
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-gray-300"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-foreground/60">
+                                    {new Date(review.createdAt).toLocaleDateString(
+                                      "es-ES",
+                                    )}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-foreground/80">
+                                  {review.comment}
+                                </p>
                               </div>
-                              <p className="text-sm text-foreground/80">
-                                {review.comment}
-                              </p>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-foreground/60">
+                          <p>No hay reseñas disponibles para este servicio.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              <TabsContent value="gallery" className="space-y-6">
+              </TabsContent>              <TabsContent value="gallery" className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -404,39 +321,72 @@ export default function ServiceDetailPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {service.gallery.map((image, index) => (
-                        <div
-                          key={index}
-                          className="aspect-video bg-muted rounded-lg flex items-center justify-center"
-                        >
-                          <Camera className="h-8 w-8 text-muted-foreground" />
-                          <span className="sr-only">Imagen {index + 1}</span>
-                        </div>
-                      ))}
-                    </div>
+                    {service.images && service.images.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {service.images.map((image: string, index: number) => (
+                          <div
+                            key={index}
+                            className="aspect-video bg-muted rounded-lg overflow-hidden"
+                          >                            <Image 
+                              src={image} 
+                              alt={`Imagen ${index + 1} del servicio`}
+                              width={400}
+                              height={300}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback if image fails to load
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const fallback = document.createElement('div');
+                                fallback.className = 'w-full h-full flex items-center justify-center bg-muted';
+                                fallback.innerHTML = '<svg class="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                (e.target as HTMLElement).parentNode?.appendChild(fallback);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-foreground/60">
+                        <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <p>No hay imágenes disponibles para este servicio.</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              <TabsContent value="faq" className="space-y-6">
+              </TabsContent>              <TabsContent value="faq" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Preguntas Frecuentes</CardTitle>
+                    <CardTitle>Información Adicional</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {service.faqs.map((faq, index) => (
-                        <div key={index}>
-                          <h4 className="font-medium mb-2">{faq.question}</h4>
-                          <p className="text-sm text-foreground/70">
-                            {faq.answer}
-                          </p>
-                          {index < service.faqs.length - 1 && (
-                            <Separator className="mt-4" />
-                          )}
-                        </div>
-                      ))}
+                      <div>
+                        <h4 className="font-medium mb-2">¿Cómo funciona el servicio?</h4>
+                        <p className="text-sm text-foreground/70">
+                          Una vez reservado el servicio, el profesional se pondrá en contacto contigo para coordinar los detalles específicos del trabajo.
+                        </p>
+                        <Separator className="mt-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">¿Qué está incluido en el precio?</h4>
+                        <p className="text-sm text-foreground/70">
+                          Este servicio incluye {Math.floor(service.duration / 60)} horas y {service.duration % 60} minutos de trabajo profesional. Los materiales necesarios se coordinarán directamente con el cliente.
+                        </p>
+                        <Separator className="mt-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">¿Cómo puedo contactar al profesional?</h4>
+                        <p className="text-sm text-foreground/70">
+                          Puedes usar el botón &quot;Contactar&quot; para enviar un mensaje directo al profesional antes de realizar la reserva.
+                        </p>
+                        <Separator className="mt-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">¿Qué pasa si no estoy satisfecho?</h4>
+                        <p className="text-sm text-foreground/70">
+                          Ofrecemos garantía de satisfacción. Si no estás conforme con el servicio, puedes contactarnos para resolver cualquier inconveniente.
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -444,18 +394,16 @@ export default function ServiceDetailPage() {
             </Tabs>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Pricing Card */}
+          {/* Sidebar */}          <div className="space-y-6">
+            {/* Service Actions Card */}
             <Card className="sticky top-6">
               <CardHeader>
-                <CardTitle className="text-2xl text-primary">
-                  {service.price}
+                <CardTitle className="text-xl text-primary">
+                  Contratar Servicio
                 </CardTitle>
                 <div className="space-y-1 text-sm text-foreground/60">
-                  <div>Diagnóstico: {service.priceDetails.diagnosis}</div>
-                  <div>Servicio mínimo: {service.priceDetails.minService}</div>
-                  <div>Por hora: {service.priceDetails.hourlyRate}</div>
+                  <div>Duración: {Math.floor(service.duration / 60)}h {service.duration % 60}min</div>
+                  <div>Categoría: {service.category?.name}</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -483,9 +431,7 @@ export default function ServiceDetailPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
-
-            {/* Provider Card */}
+            </Card>            {/* Provider Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Acerca del Profesional</CardTitle>
@@ -493,65 +439,51 @@ export default function ServiceDetailPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={service.provider.image} />
+                    <AvatarImage src={service.professional?.user?.avatar} />
                     <AvatarFallback>
-                      {service.provider.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                      {service.professional?.user?.name
+                        ?.split(" ")
+                        ?.map((n: string) => n[0])
+                        .join("") || "P"}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="font-medium">
-                        {service.provider.name}
+                        {service.professional?.user?.name || "Profesional"}
                       </span>
-                      {service.provider.verified && (
+                      {service.professional?.isVerified && (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       )}
-                    </div>
-                    <div className="text-sm text-foreground/60">
-                      Miembro desde {service.provider.memberSince}
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-sm text-foreground/70">
-                  {service.provider.bio}
-                </p>
-
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="font-medium">Especialidades:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {service.provider.specialties.map((specialty, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {specialty}
-                        </Badge>
-                      ))}
+                    </div>                    <div className="text-sm text-foreground/60">
+                      Profesional verificado
                     </div>
                   </div>
-                </div>
+                </div>                {service.professional?.bio && (
+                  <p className="text-sm text-foreground/70">
+                    {service.professional.bio}
+                  </p>
+                )}
 
                 <Separator />
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-foreground/60" />
-                    <span>{service.availability}</span>
+                    <Star className="h-4 w-4 text-yellow-400" />
+                    <span>Calificación: {service.professional?.rating || 0}/5</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>{service.professional?.reviewCount || 0} reseñas</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-foreground/60" />
-                    <span>Cubre: {service.serviceArea.join(", ")}</span>
+                    <span>Ubicación: No especificada</span>
                   </div>
                 </div>
 
                 <Button variant="outline" className="w-full" asChild>
-                  <Link href={`/professionals/${service.provider.id}`}>
+                  <Link href={`/professionals/${service.professional?.id}`}>
                     Ver Perfil Completo
                   </Link>
                 </Button>

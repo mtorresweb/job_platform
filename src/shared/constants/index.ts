@@ -111,17 +111,6 @@ export const RATING_CONFIG = {
 } as const;
 
 // ==========================================
-// CONFIGURACIÓN DE PRECIOS
-// ==========================================
-
-export const PRICE_CONFIG = {
-  currency: "COP",
-  minPrice: 1000,
-  maxPrice: 10000000,
-  commissionRate: 0, // 0% de comisión - Plataforma 100% gratuita
-} as const;
-
-// ==========================================
 // CONFIGURACIÓN DE HORARIOS
 // ==========================================
 
@@ -202,8 +191,7 @@ export const MESSAGES = {
     minLength: "Debe tener al menos {min} caracteres.",
     maxLength: "Debe tener máximo {max} caracteres.",
     passwordMatch: "Las contraseñas no coinciden.",
-    minPrice: "El precio mínimo es ${min}.",
-    maxPrice: "El precio máximo es ${max}.",
+
     fileSize: "El archivo debe ser menor a {size}MB.",
     fileType: "Tipo de archivo no permitido.",
   },

@@ -4,7 +4,7 @@
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { MESSAGES, PRICE_CONFIG } from "../constants";
+import { MESSAGES } from "../constants";
 
 // ==========================================
 // UTILIDADES DE UI
@@ -41,15 +41,19 @@ export function truncateText(text: string, maxLength: number): string {
 // ==========================================
 
 /**
- * Formatea precio en pesos colombianos
+ * Formatea duración en minutos a formato legible
  */
-export function formatPrice(amount: number): string {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  if (hours === 0) {
+    return `${remainingMinutes}min`;
+  } else if (remainingMinutes === 0) {
+    return `${hours}h`;
+  } else {
+    return `${hours}h ${remainingMinutes}min`;
+  }
 }
 
 /**
@@ -99,18 +103,7 @@ export function formatDate(date: Date | string, includeTime = false): string {
   return targetDate.toLocaleDateString("es-CO", options);
 }
 
-/**
- * Formatea duración en minutos a formato legible
- */
-export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
 
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-
-  if (remainingMinutes === 0) return `${hours} h`;
-  return `${hours}h ${remainingMinutes}m`;
-}
 
 // ==========================================
 // UTILIDADES DE VALIDACIÓN
@@ -339,22 +332,6 @@ export function calculateAverageRating(ratings: number[]): number {
   return Math.round((sum / ratings.length) * 10) / 10; // Redondea a 1 decimal
 }
 
-/**
- * Calcula comisión de la plataforma
- * NOTA: Actualmente 0% - Plataforma 100% gratuita
- */
-export function calculatePlatformFee(amount: number): number {
-  return Math.round(amount * PRICE_CONFIG.commissionRate); // Retorna 0
-}
-
-/**
- * Calcula monto final después de comisión
- * NOTA: Como no hay comisión, retorna el monto completo
- */
-export function calculateFinalAmount(amount: number): number {
-  return amount; // Sin comisión, el profesional recibe el 100%
-}
-
 // ==========================================
 // UTILIDADES DE TIEMPO
 // ==========================================
@@ -434,7 +411,10 @@ export function isNetworkError(error: unknown): boolean {
  */
 export function devLog(...args: unknown[]): void {
   if (process.env.NODE_ENV === "development") {
-    console.log(...args);
+    // Development logging - can be controlled via environment variable
+    if (process.env.ENABLE_DEBUG_LOGS !== 'false') {
+      console.log('[DEV]', ...args);
+    }
   }
 }
 

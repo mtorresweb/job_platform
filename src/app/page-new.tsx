@@ -9,7 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { usePlatformStats } from "@/shared/hooks/useReviews";
 import {
   Search,
   Star,
@@ -23,6 +25,13 @@ import {
 
 export default function HomePage() {
   const { user, isAuthenticated } = useUserRole();
+  
+  // Fetch real platform statistics
+  const { 
+    data: platformStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = usePlatformStats();
 
   return (
     <div className="min-h-screen bg-background">
@@ -207,31 +216,56 @@ export default function HomePage() {
             </Card>
           </div>
         </div>
-      </section>
-
-      {/* Stats Section */}
+      </section>      {/* Stats Section */}
       <section className="py-20 px-4">
         <div className="container-custom">
-          <div className="grid md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">
-                10,000+
+          {statsError ? (
+            <div className="text-center text-foreground/60">
+              <p>No se pudieron cargar las estadísticas</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-4 gap-8 text-center">              <div>
+                <div className="text-4xl font-bold text-primary mb-2">
+                  {statsLoading ? (
+                    <Skeleton className="h-10 w-20 mx-auto" />
+                  ) : platformStats?.completedBookings ? (
+                    `${platformStats.completedBookings.toLocaleString()}+`
+                  ) : (
+                    <Skeleton className="h-10 w-20 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60">Servicios Completados</div>
               </div>
-              <div className="text-foreground/60">Servicios Completados</div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">
+                  {statsLoading ? (
+                    <Skeleton className="h-10 w-20 mx-auto" />
+                  ) : platformStats?.totalProfessionals ? (
+                    `${platformStats.totalProfessionals.toLocaleString()}+`
+                  ) : (
+                    <Skeleton className="h-10 w-20 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60">Profesionales Activos</div>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">
+                  {statsLoading ? (
+                    <Skeleton className="h-10 w-16 mx-auto" />
+                  ) : platformStats?.satisfactionRate ? (
+                    `${platformStats.satisfactionRate}%`
+                  ) : (
+                    <Skeleton className="h-10 w-16 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60">Satisfacción del Cliente</div>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">24/7</div>
+                <div className="text-foreground/60">Soporte al Cliente</div>
+              </div>
             </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">2,500+</div>
-              <div className="text-foreground/60">Profesionales Activos</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">98%</div>
-              <div className="text-foreground/60">Satisfacción del Cliente</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">24/7</div>
-              <div className="text-foreground/60">Soporte al Cliente</div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 

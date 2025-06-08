@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
   Star,
@@ -31,8 +32,15 @@ import {
   PaintBucket,
   Monitor,
 } from "lucide-react";
+import { usePlatformStats } from "@/shared/hooks/useReviews";
 
 export default function HomePage() {
+  // Fetch real platform statistics
+  const { 
+    data: platformStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = usePlatformStats();
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -98,44 +106,67 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </section>
-      {/* Stats Section */}
+      </section>      {/* Stats Section */}
       <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div className="space-y-2">
-              <div className="text-4xl lg:text-5xl font-bold text-primary">
-                50K+
+          {statsError ? (
+            <div className="text-center text-foreground/60">
+              <p>No se pudieron cargar las estadísticas</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              <div className="space-y-2">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">
+                  {statsLoading ? (
+                    <Skeleton className="h-12 w-24 mx-auto" />
+                  ) : platformStats?.completedBookings ? (
+                    `${Math.floor(platformStats.completedBookings / 1000)}K+`
+                  ) : (
+                    <Skeleton className="h-12 w-24 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60 font-medium">
+                  Servicios Completados
+                </div>
               </div>
-              <div className="text-foreground/60 font-medium">
-                Servicios Completados
+              <div className="space-y-2">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">
+                  {statsLoading ? (
+                    <Skeleton className="h-12 w-20 mx-auto" />
+                  ) : platformStats?.totalProfessionals ? (
+                    `${Math.floor(platformStats.totalProfessionals / 1000)}K+`
+                  ) : (
+                    <Skeleton className="h-12 w-20 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60 font-medium">
+                  Profesionales Activos
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">
+                  {statsLoading ? (
+                    <Skeleton className="h-12 w-16 mx-auto" />
+                  ) : platformStats?.satisfactionRate ? (
+                    `${platformStats.satisfactionRate}%`
+                  ) : (
+                    <Skeleton className="h-12 w-16 mx-auto" />
+                  )}
+                </div>
+                <div className="text-foreground/60 font-medium">
+                  Satisfacción del Cliente
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">
+                  24/7
+                </div>
+                <div className="text-foreground/60 font-medium">
+                  Soporte Disponible
+                </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-4xl lg:text-5xl font-bold text-primary">
-                5K+
-              </div>
-              <div className="text-foreground/60 font-medium">
-                Profesionales Activos
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl lg:text-5xl font-bold text-primary">
-                99%
-              </div>
-              <div className="text-foreground/60 font-medium">
-                Satisfacción del Cliente
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl lg:text-5xl font-bold text-primary">
-                24/7
-              </div>
-              <div className="text-foreground/60 font-medium">
-                Soporte Disponible
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>{" "}
       {/* Popular Services Section */}

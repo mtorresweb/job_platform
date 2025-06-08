@@ -34,7 +34,6 @@ import {
   CheckCircle,
   MessageSquare,
   Phone,
-  DollarSign,
   User,
   Plus,
   Edit,
@@ -383,13 +382,12 @@ export default function BookingsPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-6">              <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground/60">Total</p>
                   <p className="text-2xl font-bold">{bookings.length}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-emerald-500" />
+                <CalendarIcon className="h-8 w-8 text-emerald-500" />
               </div>
             </CardContent>
           </Card>
@@ -498,14 +496,13 @@ export default function BookingsPage() {
                                     <div className="flex items-center gap-1">
                                       <CalendarIcon className="h-3 w-3" />
                                       <span>{format(bookingDate, "PPP", { locale: es })}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
+                                    </div>                                    <div className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       <span>{format(bookingDate, "p", { locale: es })}</span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" />
-                                      <span>${booking.totalPrice}</span>
+                                      <Clock className="h-3 w-3" />
+                                      <span>{booking.duration} min</span>
                                     </div>
                                   </div>
                                 </div>

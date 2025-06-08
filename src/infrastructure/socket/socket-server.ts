@@ -5,6 +5,7 @@ import { auth } from "../auth/auth";
 export class SocketService {
   private static instance: SocketService;
   private io: SocketServer;
+  private connectedUsers: Map<string, string> = new Map();
 
   private constructor(httpServer: HTTPServer) {
     this.io = new SocketServer(httpServer, {
@@ -54,11 +55,11 @@ export class SocketService {
       }
     });
   }
-
   private setupEventHandlers() {
     this.io.on("connection", (socket) => {
       const user = socket.data.user;
-      console.log(`User ${user.id} connected`);
+      // User connected to socket server - store connection info
+      this.connectedUsers.set(user.id, socket.id);
 
       // Unirse a sala personal
       socket.join(`user:${user.id}`);
@@ -96,11 +97,10 @@ export class SocketService {
       socket.on("mark_notification_read", () => {
         // Marcar notificación como leída en la base de datos
         // Emitir actualización si es necesario
-      });
-
-      // Manejar desconexión
+      });      // Manejar desconexión
       socket.on("disconnect", () => {
-        console.log(`User ${user.id} disconnected`);
+        // User disconnected from socket server - cleanup connection info
+        this.connectedUsers.delete(user.id);
       });
     });
   }

@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
-        where,
-        include: {
+        where,        include: {
           client: {
             select: {
               id: true,
@@ -61,7 +60,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               title: true,
-              price: true,
               duration: true,
               images: true,
             },
@@ -170,16 +168,14 @@ export async function POST(request: NextRequest) {
         { success: false, message: 'El horario seleccionado no está disponible' },
         { status: 400 }
       );
-    }
-
-    const booking = await prisma.booking.create({
+    }    const booking = await prisma.booking.create({
       data: {
         clientId: session.user.id,
         professionalId: service.professional.user.id,
         serviceId: service.id,
         scheduledAt: validatedData.data.scheduledAt,
         duration: service.duration,
-        totalPrice: service.price,
+        totalPrice: service.price || 0.0,
         notes: validatedData.data.notes,
       },
       include: {
@@ -198,12 +194,10 @@ export async function POST(request: NextRequest) {
             email: true,
             avatar: true,
           },
-        },
-        service: {
+        },        service: {
           select: {
             id: true,
             title: true,
-            price: true,
             duration: true,
             images: true,
           },

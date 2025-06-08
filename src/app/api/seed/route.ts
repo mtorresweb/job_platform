@@ -72,7 +72,9 @@ export async function POST() {
       }),
     ]);
 
-    console.log('📂 Created service categories');    // Create users (clients and professionals)
+    console.log('📂 Created service categories');
+
+    // Create users (clients and professionals)
     const users = await Promise.all([
       // Clients
       prisma.user.create({
@@ -140,9 +142,7 @@ export async function POST() {
 
     const [johnClient, sarahClient, alexDev, mariaDesigner, davidMarketer, emilyWriter] = users;
 
-    console.log('👥 Created users');
-
-    // Create professional profiles
+    console.log('👥 Created users');    // Create professional profiles
     const professionals = await Promise.all([
       prisma.professional.create({
         data: {
@@ -153,11 +153,9 @@ export async function POST() {
           reviewCount: 47,
           isVerified: true,
           specialties: ['React', 'Node.js', 'TypeScript', 'PostgreSQL', 'AWS'],
-          hourlyRate: 85,
           address: '123 Tech Street',
           city: 'San Francisco',
-          state: 'CA',
-          country: 'USA',
+          state: 'CA',          country: 'USA',
           zipCode: '94105',
         },
       }),
@@ -170,11 +168,9 @@ export async function POST() {
           reviewCount: 32,
           isVerified: true,
           specialties: ['UI/UX Design', 'Brand Identity', 'Adobe Creative Suite', 'Figma'],
-          hourlyRate: 65,
           address: '456 Design Avenue',
           city: 'Los Angeles',
-          state: 'CA',
-          country: 'USA',
+          state: 'CA',          country: 'USA',
           zipCode: '90210',
         },
       }),
@@ -187,7 +183,6 @@ export async function POST() {
           reviewCount: 28,
           isVerified: true,
           specialties: ['SEO', 'Google Ads', 'Social Media Marketing', 'Content Strategy'],
-          hourlyRate: 75,
           address: '789 Marketing Lane',
           city: 'New York',
           state: 'NY',
@@ -195,8 +190,7 @@ export async function POST() {
           zipCode: '10001',
         },
       }),
-      prisma.professional.create({
-        data: {
+      prisma.professional.create({        data: {
           userId: emilyWriter.id,
           bio: 'Professional content writer and translator with expertise in technical writing, blog content, and multilingual translations.',
           experience: 4,
@@ -204,7 +198,6 @@ export async function POST() {
           reviewCount: 22,
           isVerified: false,
           specialties: ['Technical Writing', 'Blog Content', 'English-Spanish Translation', 'SEO Writing'],
-          hourlyRate: 45,
           address: '321 Writer Way',
           city: 'Austin',
           state: 'TX',
@@ -214,7 +207,9 @@ export async function POST() {
       }),
     ]);
 
-    console.log('💼 Created professional profiles');    // Create availability for professionals
+    console.log('💼 Created professional profiles');
+
+    // Create availability for professionals
     for (const professional of professionals) {
       // Create standard working hours (Mon-Fri, 9-5)
       for (let day = 1; day <= 5; day++) {
@@ -235,62 +230,66 @@ export async function POST() {
     // Create services
     const services = await Promise.all([
       // Alex's services
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'Full-Stack Web Application Development',
           description: 'Complete web application development from frontend to backend, including database design and deployment.',
           categoryId: categories[0].id, // Web Development
-          price: 2500,
           duration: 2880, // 48 hours (2-3 weeks)
+          price: 2500000, // $2,500,000 COP
           professionalId: professionals[0].id,
           images: ['https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&h=300&fit=crop'],
           tags: ['React', 'Node.js', 'Database', 'API'],
-          isActive: true,
-        },
+          isActive: true,        },
       }),
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'React Component Library',
           description: 'Custom reusable React components for your design system.',
           categoryId: categories[0].id,
-          price: 800,
           duration: 480, // 8 hours
+          price: 800000, // $800,000 COP
           professionalId: professionals[0].id,
           images: ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500&h=300&fit=crop'],
           tags: ['React', 'Components', 'Design System'],
-          isActive: true,
-        },
+          isActive: true,        },
       }),
+
       // Maria's services
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'Complete Brand Identity Design',
           description: 'Logo design, color palette, typography, and brand guidelines for your business.',
           categoryId: categories[1].id, // Graphic Design
-          price: 1200,
           duration: 720, // 12 hours
+          price: 1200000, // $1,200,000 COP
           professionalId: professionals[1].id,
           images: ['https://images.unsplash.com/photo-1558655146-d09347e92766?w=500&h=300&fit=crop'],
           tags: ['Logo', 'Branding', 'Design'],
           isActive: true,
         },
       }),
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'UI/UX Design for Mobile App',
           description: 'User interface and experience design for iOS and Android applications.',
           categoryId: categories[1].id,
-          price: 1500,
           duration: 960, // 16 hours
+          price: 1600000, // $1,600,000 COP
           professionalId: professionals[1].id,
           images: ['https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=500&h=300&fit=crop'],
           tags: ['UI/UX', 'Mobile', 'App Design'],
-          isActive: true,
-        },
+          isActive: true,        },
       }),
+
       // David's services
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'SEO Optimization & Strategy',
           description: 'Complete SEO audit and optimization to improve your search engine rankings.',
           categoryId: categories[2].id, // Digital Marketing
-          price: 600,
           duration: 480, // 8 hours
+          price: 800000, // $800,000 COP
           professionalId: professionals[2].id,
           images: ['https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=500&h=300&fit=crop'],
           tags: ['SEO', 'Analytics', 'Optimization'],
@@ -298,12 +297,13 @@ export async function POST() {
         },
       }),
       // Emily's services
-      prisma.service.create({        data: {
+      prisma.service.create({
+        data: {
           title: 'Technical Documentation Writing',
           description: 'Clear and comprehensive technical documentation for software products.',
           categoryId: categories[3].id, // Writing & Translation
-          price: 400,
           duration: 360, // 6 hours
+          price: 600000, // $600,000 COP
           professionalId: professionals[3].id,
           images: ['https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500&h=300&fit=crop'],
           tags: ['Technical Writing', 'Documentation'],
@@ -312,9 +312,10 @@ export async function POST() {
       }),
     ]);
 
-    console.log('🛍️ Created services');    // Create some bookings
-    const bookings = await Promise.all([
-      prisma.booking.create({
+    console.log('🛍️ Created services');
+
+    // Create some bookings
+    const bookings = await Promise.all([      prisma.booking.create({
         data: {
           clientId: johnClient.id,
           professionalId: professionals[0].userId,
@@ -325,8 +326,7 @@ export async function POST() {
           totalPrice: services[0].price,
           notes: 'Looking for a modern e-commerce platform',
         },
-      }),
-      prisma.booking.create({
+      }),      prisma.booking.create({
         data: {
           clientId: sarahClient.id,
           professionalId: professionals[1].userId,
@@ -337,8 +337,7 @@ export async function POST() {
           totalPrice: services[2].price,
           notes: 'Need branding for new startup',
         },
-      }),
-      prisma.booking.create({
+      }),      prisma.booking.create({
         data: {
           clientId: johnClient.id,
           professionalId: professionals[2].userId,
@@ -352,7 +351,9 @@ export async function POST() {
       }),
     ]);
 
-    console.log('📋 Created bookings');    // Create reviews for completed bookings
+    console.log('📋 Created bookings');
+
+    // Create reviews for completed bookings
     await Promise.all([
       prisma.review.create({
         data: {
@@ -374,7 +375,9 @@ export async function POST() {
       }),
     ]);
 
-    console.log('⭐ Created reviews');    // Create some conversations and messages
+    console.log('⭐ Created reviews');
+
+    // Create some conversations and messages
     const conversation = await prisma.conversation.create({
       data: {
         clientId: johnClient.id,
@@ -404,7 +407,9 @@ export async function POST() {
       }),
     ]);
 
-    console.log('💬 Created conversations and messages');    // Create notifications
+    console.log('💬 Created conversations and messages');
+
+    // Create notifications
     await Promise.all([
       prisma.notification.create({
         data: {
@@ -439,10 +444,11 @@ export async function POST() {
         users: users.length,
         professionals: professionals.length,
         services: services.length,
-        categories: categories.length,
-        bookings: bookings.length,
+        categories: categories.length,        bookings: bookings.length,
       },
-    });  } catch (error: unknown) {
+    });
+
+  } catch (error: unknown) {
     console.error('❌ Error seeding database:', error);
     return NextResponse.json(
       { 
@@ -471,10 +477,11 @@ export async function GET() {
           users: userCount,
           professionals: professionalCount,
           services: serviceCount,
-          categories: categoryCount,
-        },
+          categories: categoryCount,        },
       },
-    });  } catch (error: unknown) {
+    });
+
+  } catch (error: unknown) {
     console.error('❌ Error checking database status:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to check database status' },

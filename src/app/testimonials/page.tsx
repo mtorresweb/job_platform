@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
   Star,
@@ -15,120 +16,69 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
-
-const testimonials = [
-  {
-    id: 1,
-    name: "María González",
-    role: "Profesional en Limpieza",
-    avatar: "/avatars/maria.jpg",
-    location: "Bogotá",
-    rating: 5,
-    quote:
-      "Por primera vez en años puedo quedarme con el 100% de lo que gano. Otras plataformas me quitaban hasta el 20% de comisión, aquí es realmente gratis.",
-    highlight: "Ahorro $300.000+ mensual en comisiones",
-    category: "professional",
-    featured: true,
-  },
-  {
-    id: 2,
-    name: "Carlos Mendoza",
-    role: "Cliente Empresarial",
-    avatar: "/avatars/carlos.jpg",
-    location: "Medellín",
-    rating: 5,
-    quote:
-      "Contraté servicios de mantenimiento para mi empresa. Me sorprendió que no hubiera costos adicionales ni comisiones ocultas. Todo transparente y gratis.",
-    highlight: "Ahorré $200.000 en tarifas de plataforma",
-    category: "client",
-  },
-  {
-    id: 3,
-    name: "Ana Rodríguez",
-    role: "Profesional en Diseño",
-    avatar: "/avatars/ana.jpg",
-    location: "Cali",
-    rating: 5,
-    quote:
-      "Como freelancer, cada peso cuenta. El hecho de que ServiciosPro sea completamente gratis me permite ofrecer mejores precios a mis clientes.",
-    highlight: "100% de mis ganancias van a mi bolsillo",
-    category: "professional",
-  },
-  {
-    id: 4,
-    name: "Roberto Silva",
-    role: "Cliente Particular",
-    avatar: "/avatars/roberto.jpg",
-    location: "Barranquilla",
-    rating: 5,
-    quote:
-      "Probé varias plataformas antes. Todas cobraban algo al final. Aquí realmente es gratis y la calidad de profesionales es excelente.",
-    highlight: "Sin sorpresas en el precio final",
-    category: "client",
-  },
-  {
-    id: 5,
-    name: "Lucía Herrera",
-    role: "Profesional en Tutorías",
-    avatar: "/avatars/lucia.jpg",
-    location: "Bucaramanga",
-    rating: 5,
-    quote:
-      "Tengo más estudiantes que nunca porque puedo ofrecer precios más competitivos al no pagar comisiones. Es un win-win para todos.",
-    highlight: "Incrementé mis clientes en 40%",
-    category: "professional",
-    featured: true,
-  },
-  {
-    id: 6,
-    name: "Pedro Jiménez",
-    role: "Cliente Recurrente",
-    avatar: "/avatars/pedro.jpg",
-    location: "Cartagena",
-    rating: 5,
-    quote:
-      "Llevo 6 meses usando ServiciosPro para varios servicios del hogar. Nunca me han cobrado nada extra. Es realmente lo que prometen.",
-    highlight: "6 meses de uso 100% gratuito",
-    category: "client",
-  },
-];
-
-const stats = [
-  {
-    number: "$2.5M+",
-    label: "Ahorrados en comisiones",
-    description:
-      "Dinero que se quedó en los bolsillos de nuestros profesionales",
-    icon: DollarSign,
-  },
-  {
-    number: "15,000+",
-    label: "Usuarios activos",
-    description:
-      "Profesionales y clientes que confían en nuestro modelo gratuito",
-    icon: Users,
-  },
-  {
-    number: "98%",
-    label: "Satisfacción",
-    description: "De usuarios que recomiendan nuestro modelo sin comisiones",
-    icon: Heart,
-  },
-  {
-    number: "0",
-    label: "Costos ocultos",
-    description: "Transparencia total en todos nuestros servicios",
-    icon: CheckCircle,
-  },
-];
+import { useFeaturedTestimonials, usePlatformStats } from "@/shared/hooks/useReviews";
 
 export default function TestimonialsPage() {
-  const professionalTestimonials = testimonials.filter(
-    (t) => t.category === "professional",
-  );
-  const clientTestimonials = testimonials.filter(
-    (t) => t.category === "client",
-  );
+  // Fetch real testimonials and platform stats
+  const { 
+    data: testimonials, 
+    isLoading: testimonialsLoading, 
+    error: testimonialsError 
+  } = useFeaturedTestimonials(12);
+  
+  const { 
+    data: platformStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = usePlatformStats();
+
+  // Generate stats from real data
+  const stats = platformStats ? [
+    {
+      number: `$${Math.round(platformStats.totalSavings / 1000000 * 10) / 10}M+`,
+      label: "Ahorrados en comisiones",
+      description: "Dinero que se quedó en los bolsillos de nuestros profesionales",
+      icon: DollarSign,
+    },
+    {
+      number: `${platformStats.activeUsers.toLocaleString()}+`,
+      label: "Usuarios activos",
+      description: "Profesionales y clientes que confían en nuestro modelo gratuito",
+      icon: Users,
+    },
+    {
+      number: `${platformStats.satisfactionRate}%`,
+      label: "Satisfacción",
+      description: "De usuarios que recomiendan nuestro modelo sin comisiones",
+      icon: Heart,
+    },
+    {
+      number: "0",
+      label: "Costos ocultos",
+      description: "Transparencia total en todos nuestros servicios",
+      icon: CheckCircle,
+    },
+  ] : [];
+
+  // Filter testimonials by category
+  const professionalTestimonials = testimonials?.filter((t) => t.category === "professional") || [];
+  const clientTestimonials = testimonials?.filter((t) => t.category === "client") || [];
+
+  if (testimonialsError || statsError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Error al cargar testimonios</h2>
+          <p className="text-foreground/60 mb-4">
+            No pudimos cargar los testimonios. Por favor, intenta nuevamente.
+          </p>
+          <Button onClick={() => window.location.reload()}>
+            Intentar nuevamente
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,33 +136,65 @@ export default function TestimonialsPage() {
             Escucha las experiencias reales de profesionales y clientes que han
             descubierto las ventajas de una plataforma verdaderamente gratuita.
           </p>
-        </div>
-
-        {/* Impact Stats */}
+        </div>        {/* Impact Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-16">
-          {stats.map((stat, index) => (
-            <Card key={index} className="text-center">
-              <CardContent className="pt-6">
-                <stat.icon className="h-8 w-8 text-primary mx-auto mb-3" />
-                <div className="text-3xl font-bold text-primary mb-2">
-                  {stat.number}
-                </div>
-                <div className="font-semibold mb-1">{stat.label}</div>
-                <p className="text-sm text-foreground/60">{stat.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Featured Testimonials */}
+          {statsLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index} className="text-center">
+                <CardContent className="pt-6">
+                  <Skeleton className="h-8 w-8 mx-auto mb-3" />
+                  <Skeleton className="h-8 w-20 mx-auto mb-2" />
+                  <Skeleton className="h-4 w-24 mx-auto mb-1" />
+                  <Skeleton className="h-3 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            stats.map((stat, index) => (
+              <Card key={index} className="text-center">
+                <CardContent className="pt-6">
+                  <stat.icon className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <div className="text-3xl font-bold text-primary mb-2">
+                    {stat.number}
+                  </div>
+                  <div className="font-semibold mb-1">{stat.label}</div>
+                  <p className="text-sm text-foreground/60">{stat.description}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>        {/* Featured Testimonials */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-center mb-8">
             Testimonios Destacados
           </h2>
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {testimonials
-              .filter((t) => t.featured)
-              .map((testimonial) => (
+          {testimonialsLoading ? (
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <Card key={index} className="border-primary/30">
+                  <CardHeader>
+                    <div className="flex items-start gap-4">
+                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-4 w-16" />
+                        </div>
+                        <Skeleton className="h-3 w-48 mb-2" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-16 w-full mb-4" />
+                    <Skeleton className="h-8 w-3/4" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {testimonials?.slice(0, 2).map((testimonial) => (
                 <Card
                   key={testimonial.id}
                   className="border-primary/30 bg-gradient-to-br from-primary/5 to-background"
@@ -232,20 +214,14 @@ export default function TestimonialsPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold">{testimonial.name}</h3>
                           <Badge
-                            variant={
-                              testimonial.category === "professional"
-                                ? "default"
-                                : "secondary"
-                            }
+                            variant="default"
                             className="text-xs"
                           >
-                            {testimonial.category === "professional"
-                              ? "Profesional"
-                              : "Cliente"}
+                            {testimonial.isVerified ? 'Verificado' : 'Cliente'}
                           </Badge>
                         </div>
                         <p className="text-sm text-foreground/60">
-                          {testimonial.role} • {testimonial.location}
+                          {testimonial.role}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           {[...Array(testimonial.rating)].map((_, i) => (
@@ -259,23 +235,21 @@ export default function TestimonialsPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {" "}
                     <blockquote className="text-foreground/80 italic mb-4">
-                      &ldquo;{testimonial.quote}&rdquo;
+                      &ldquo;{testimonial.comment}&rdquo;
                     </blockquote>
                     <div className="bg-primary/10 rounded-lg p-3">
                       <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                         <CheckCircle className="h-4 w-4" />
-                        {testimonial.highlight}
+                        Servicio: {testimonial.serviceTitle}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-          </div>
-        </div>
-
-        {/* Professional Testimonials */}
+            </div>
+          )}
+        </div>        {/* Professional Testimonials */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-center mb-2">
             Para Profesionales
@@ -284,10 +258,30 @@ export default function TestimonialsPage() {
             Descubre cómo nuestro modelo sin comisiones está transformando la
             vida de los profesionales
           </p>
-          <div className="grid md:grid-cols-3 gap-6">
-            {professionalTestimonials
-              .filter((t) => !t.featured)
-              .map((testimonial) => (
+          {testimonialsLoading ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div>
+                        <Skeleton className="h-4 w-24 mb-1" />
+                        <Skeleton className="h-3 w-32 mb-1" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-12 w-full mb-3" />
+                    <Skeleton className="h-6 w-3/4" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              {professionalTestimonials.slice(0, 3).map((testimonial) => (
                 <Card
                   key={testimonial.id}
                   className="hover:shadow-lg transition-shadow"
@@ -321,31 +315,50 @@ export default function TestimonialsPage() {
                   </CardHeader>
                   <CardContent>
                     <blockquote className="text-sm text-foreground/80 italic mb-3">
-                      &quot;{testimonial.quote}&quot;
+                      &quot;{testimonial.comment}&quot;
                     </blockquote>
                     <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-2">
                       <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium text-xs">
                         <DollarSign className="h-3 w-3" />
-                        {testimonial.highlight}
+                        Servicio: {testimonial.serviceTitle}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-          </div>
-        </div>
-
-        {/* Client Testimonials */}
+            </div>
+          )}
+        </div>        {/* Client Testimonials */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-center mb-2">Para Clientes</h2>
           <p className="text-center text-foreground/60 mb-8 max-w-2xl mx-auto">
             Conoce la experiencia de quienes han encontrado profesionales sin
             costos adicionales
           </p>
-          <div className="grid md:grid-cols-3 gap-6">
-            {clientTestimonials
-              .filter((t) => !t.featured)
-              .map((testimonial) => (
+          {testimonialsLoading ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div>
+                        <Skeleton className="h-4 w-24 mb-1" />
+                        <Skeleton className="h-3 w-32 mb-1" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-12 w-full mb-3" />
+                    <Skeleton className="h-6 w-3/4" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              {clientTestimonials.slice(0, 3).map((testimonial) => (
                 <Card
                   key={testimonial.id}
                   className="hover:shadow-lg transition-shadow"
@@ -379,18 +392,19 @@ export default function TestimonialsPage() {
                   </CardHeader>
                   <CardContent>
                     <blockquote className="text-sm text-foreground/80 italic mb-3">
-                      &quot;{testimonial.quote}&quot;
+                      &quot;{testimonial.comment}&quot;
                     </blockquote>
                     <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-2">
                       <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-medium text-xs">
                         <CheckCircle className="h-3 w-3" />
-                        {testimonial.highlight}
+                        Servicio: {testimonial.serviceTitle}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* CTA Section */}

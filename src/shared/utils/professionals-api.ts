@@ -109,21 +109,21 @@ class ProfessionalsApiService {
     const queryParams = {
       ...searchParams,
       ...filters,
-    };    const response = await apiClient.get<{
-      data: {
-        professionals: Professional[];
+    };
+
+    const response = await apiClient.get<{
+      professionals: Professional[];
+      total: number;
+      hasMore: boolean;
+      pagination: {
+        page: number;
+        limit: number;
         total: number;
-        hasMore: boolean;
-        pagination: {
-          page: number;
-          limit: number;
-          total: number;
-          totalPages: number;
-        };
+        totalPages: number;
       };
     }>('/professionals', queryParams as Record<string, unknown>);
     
-    return response.data.data;
+    return response.data;
   }
 
   // Search professionals
@@ -154,40 +154,34 @@ class ProfessionalsApiService {
         avgRating: number;
         priceRange: { min: number; max: number };
       };
-    }>('/search/professionals', queryParams as Record<string, unknown>);
-    
+    }>('/professionals/search', queryParams as Record<string, unknown>);
+
     return response.data;
   }
 
   // Get professional by ID
   async getProfessionalById(id: string): Promise<Professional> {
-    const response = await apiClient.get<{
-      data: Professional;
-    }>(`/professionals/${id}`);
-    return response.data.data;
+    const response = await apiClient.get<Professional>(`/professionals/${id}`);
+    return response.data;
   }
 
   // Update professional profile (only the professional themselves)
   async updateProfessional(id: string, data: UpdateProfessionalData): Promise<Professional> {
-    const response = await apiClient.put<{
-      data: Professional;
-    }>(`/professionals/${id}`, data);
-    return response.data.data;
+    const response = await apiClient.put<Professional>(`/professionals/${id}`, data);
+    return response.data;
   }
 
   // Get featured professionals (with high ratings)
   async getFeaturedProfessionals(limit = 6): Promise<Professional[]> {
     const response = await apiClient.get<{
-      data: {
-        professionals: Professional[];
-      };
+      professionals: Professional[];
     }>('/professionals', {
       sortBy: 'rating',
       sortOrder: 'desc',
       isVerified: true,
       limit,
     });
-    return response.data.data.professionals;
+    return response.data.professionals;
   }
 
   // Get nearby professionals (location-based search)

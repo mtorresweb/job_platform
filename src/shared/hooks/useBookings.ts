@@ -73,20 +73,17 @@ export function useCreateBooking() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateBookingData) => bookingsApi.createBooking(data),
-    onSuccess: (newBooking) => {
+    onSuccess: () => {
       toast.success('Reserva creada exitosamente');
       
       // Invalidate user bookings
       queryClient.invalidateQueries({ 
         queryKey: BOOKINGS_QUERY_KEYS.lists() 
       });
-      
-      // Invalidate stats
+        // Invalidate stats
       queryClient.invalidateQueries({ 
         queryKey: BOOKINGS_QUERY_KEYS.stats() 
       });
-      
-      console.log('New booking created:', newBooking);
       
       // Invalidate availability
       queryClient.invalidateQueries({

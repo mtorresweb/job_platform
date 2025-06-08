@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,37 +10,44 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   User, 
   Bell, 
   Shield, 
-  CreditCard, 
-  Star,   MapPin, 
+  Star,   
+  MapPin, 
   Camera,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
+import { toast } from "sonner";
+import { useCurrentUser, useUserRole } from "@/infrastructure/auth/auth-client";
+import { useProfessionalStats } from "@/shared/hooks/useProfessionals";
+import { useFileUpload, FileCategory } from "@/shared/hooks/useFileUpload";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/shared/utils/api-client";
 
 export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [profileImage] = useState("");
-  
-  // Mock user data - replace with real data from your auth system
+  const queryClient = useQueryClient();  // Auth hooks
+  const user = useCurrentUser();
+  const {  isAuthenticated } = useUserRole();// API hooks
+  const { data: professionalStats, isLoading: statsLoading } = useProfessionalStats(user?.id || "");
+  const { uploadFile, isUploading } = useFileUpload(FileCategory.AVATAR);  // Local state for form data
   const [profile, setProfile] = useState({
-    name: "María González",
-    email: "maria.gonzalez@email.com",
-    phone: "+34 666 123 456",
-    location: "Madrid, España",
-    bio: "Profesional del diseño gráfico con más de 8 años de experiencia. Especializada en branding e identidad corporativa.",
-    profession: "Diseñadora Gráfica",
-    hourlyRate: "45",
-    availability: "disponible"
-  });
-
-  const [notifications, setNotifications] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    bio: "",
+    profession: "",
+    availability: "disponible",
+    avatar: ""
+  });const [notificationPrefs, setNotificationPrefs] = useState({
     emailMessages: true,
     emailBookings: true,
     emailReviews: false,
@@ -49,29 +56,114 @@ export default function SettingsPage() {
     pushReviews: true,
     smsReminders: false,
     marketingEmails: false
-  });
-
-  const [privacy, setPrivacy] = useState({
+  });  const [privacy, setPrivacy] = useState({
     profileVisibility: "public",
     showEmail: false,
     showPhone: false,
     showLastActive: true
   });
+  // Initialize profile data from user
+  useEffect(() => {
+    if (user) {
+      setProfile(prev => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+        avatar: user.avatar || "",
+        // We'll need to fetch extended profile data from API
+      }));
+    }
+  }, [user]);
+
+  // Profile update mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: typeof profile) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const response = await apiClient.put(`/api/users/${user.id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Perfil actualizado correctamente");
+      queryClient.invalidateQueries({ queryKey: ['user', user?.id] });
+    },
+    onError: (error) => {
+      console.error("Error updating profile:", error);
+      toast.error("Error al actualizar el perfil");
+    }
+  });  // Notification settings update mutation
+  const updateNotificationsMutation = useMutation({
+    mutationFn: async (settings: typeof notificationPrefs) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const response = await apiClient.put(`/api/users/${user.id}/notification-settings`, settings);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Preferencias de notificación actualizadas");
+    },
+    onError: (error) => {
+      console.error("Error updating notifications:", error);
+      toast.error("Error al actualizar las notificaciones");
+    }
+  });
+  // Privacy settings update mutation
+  const updatePrivacyMutation = useMutation({
+    mutationFn: async (settings: typeof privacy) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const response = await apiClient.put(`/api/users/${user.id}/privacy-settings`, settings);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Configuración de privacidad actualizada");
+    },
+    onError: (error) => {
+      console.error("Error updating privacy:", error);
+      toast.error("Error al actualizar la privacidad");
+    }  });
+
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (file: File) => {
+    try {
+      const uploadedFile = await uploadFile(file);
+      
+      if (uploadedFile) {
+        await updateProfileMutation.mutateAsync({
+          ...profile,
+          avatar: uploadedFile.url
+        });
+        toast.success("Foto de perfil actualizada");
+      }
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      toast.error("Error al subir la foto");
+    }
+  };
 
   const handleProfileUpdate = () => {
-    // Handle profile update logic here
-    console.log("Profile updated:", profile);
+    updateProfileMutation.mutate(profile);
+  };  const handleNotificationUpdate = () => {
+    updateNotificationsMutation.mutate(notificationPrefs);
+  };  const handlePrivacyUpdate = () => {
+    updatePrivacyMutation.mutate(privacy);
   };
 
-  const handleNotificationUpdate = () => {
-    // Handle notification preferences update
-    console.log("Notifications updated:", notifications);
-  };
-
-  const handlePrivacyUpdate = () => {
-    // Handle privacy settings update
-    console.log("Privacy updated:", privacy);
-  };
+  // Show loading skeleton if user is not loaded
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -82,8 +174,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="profile" className="space-y-6">        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Perfil
@@ -96,10 +187,6 @@ export default function SettingsPage() {
             <Shield className="h-4 w-4" />
             Privacidad
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Facturación
-          </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -111,20 +198,41 @@ export default function SettingsPage() {
                 Actualiza tu información personal y profesional
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Profile Picture */}
-              <div className="flex items-center space-x-4">
+            <CardContent className="space-y-6">              {/* Profile Picture */}              <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={profileImage} />
+                  <AvatarImage src={profile.avatar || user?.avatar || ""} />
                   <AvatarFallback className="text-lg">
-                    {profile.name.split(' ').map(n => n[0]).join('')}
+                    {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <Button variant="outline" className="mb-2">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Cambiar Foto
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="profile-picture-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleProfilePictureUpload(file);
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="mb-2"
+                      disabled={isUploading}
+                      onClick={() => document.getElementById('profile-picture-upload')?.click()}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4 mr-2" />
+                      )}
+                      {isUploading ? 'Subiendo...' : 'Cambiar Foto'}
+                    </Button>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     JPG, PNG o GIF. Máximo 10MB.
                   </p>
@@ -167,8 +275,7 @@ export default function SettingsPage() {
                     value={profile.phone}
                     onChange={(e) => setProfile({...profile, phone: e.target.value})}
                   />
-                </div>
-                <div className="space-y-2">
+                </div>                <div className="space-y-2">
                   <Label htmlFor="location">Ubicación</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -179,15 +286,6 @@ export default function SettingsPage() {
                       className="pl-10"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hourlyRate">Tarifa por Hora (€)</Label>
-                  <Input
-                    id="hourlyRate"
-                    type="number"
-                    value={profile.hourlyRate}
-                    onChange={(e) => setProfile({...profile, hourlyRate: e.target.value})}
-                  />
                 </div>
               </div>
 
@@ -234,11 +332,17 @@ export default function SettingsPage() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <Button onClick={handleProfileUpdate} className="w-full md:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Cambios
+              </div>              <Button 
+                onClick={handleProfileUpdate} 
+                className="w-full md:w-auto"
+                disabled={updateProfileMutation.isPending}
+              >
+                {updateProfileMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {updateProfileMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
               </Button>
             </CardContent>
           </Card>
@@ -250,36 +354,55 @@ export default function SettingsPage() {
               <CardDescription>
                 Tu rendimiento en la plataforma
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">4.9</div>
-                  <div className="flex justify-center mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < 5 ? "text-yellow-400 fill-current" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
+            </CardHeader>            <CardContent>
+              {statsLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="text-center space-y-2">
+                      <Skeleton className="h-8 w-16 mx-auto" />
+                      <Skeleton className="h-4 w-20 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+              ) : (                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {professionalStats?.avgRating?.toFixed(1) || "0.0"}
+                    </div>
+                    <div className="flex justify-center mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < Math.floor(professionalStats?.avgRating || 0) 
+                              ? "text-yellow-400 fill-current" 
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Calificación</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Calificación</div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {professionalStats?.completedBookings || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Trabajos Completados</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {professionalStats?.completionRate ? `${Math.round(professionalStats.completionRate)}%` : "0%"}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Tasa de Éxito</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {professionalStats?.responseTime || "N/A"}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Tiempo Respuesta</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">127</div>
-                  <div className="text-sm text-muted-foreground">Trabajos Completados</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">98%</div>
-                  <div className="text-sm text-muted-foreground">Tasa de Éxito</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">2.1</div>
-                  <div className="text-sm text-muted-foreground">Tiempo Respuesta (h)</div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -303,11 +426,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Recibe emails cuando tengas nuevos mensajes
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.emailMessages}
+                    </div>                    <Switch
+                      checked={notificationPrefs.emailMessages}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, emailMessages: checked})
+                        setNotificationPrefs({...notificationPrefs, emailMessages: checked})
                       }
                     />
                   </div>
@@ -317,11 +439,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Confirmaciones y cambios en reservas
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.emailBookings}
+                    </div>                    <Switch
+                      checked={notificationPrefs.emailBookings}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, emailBookings: checked})
+                        setNotificationPrefs({...notificationPrefs, emailBookings: checked})
                       }
                     />
                   </div>
@@ -331,11 +452,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Cuando recibas una nueva reseña
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.emailReviews}
+                    </div>                    <Switch
+                      checked={notificationPrefs.emailReviews}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, emailReviews: checked})
+                        setNotificationPrefs({...notificationPrefs, emailReviews: checked})
                       }
                     />
                   </div>
@@ -353,11 +473,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Notificaciones en tiempo real
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.pushMessages}
+                    </div>                    <Switch
+                      checked={notificationPrefs.pushMessages}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, pushMessages: checked})
+                        setNotificationPrefs({...notificationPrefs, pushMessages: checked})
                       }
                     />
                   </div>
@@ -367,11 +486,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         30 minutos antes de cada cita
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.pushBookings}
+                    </div>                    <Switch
+                      checked={notificationPrefs.pushBookings}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, pushBookings: checked})
+                        setNotificationPrefs({...notificationPrefs, pushBookings: checked})
                       }
                     />
                   </div>
@@ -389,11 +507,10 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Recordatorios importantes por SMS
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.smsReminders}
+                    </div>                    <Switch
+                      checked={notificationPrefs.smsReminders}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, smsReminders: checked})
+                        setNotificationPrefs({...notificationPrefs, smsReminders: checked})
                       }
                     />
                   </div>
@@ -403,20 +520,25 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted-foreground">
                         Ofertas especiales y novedades
                       </div>
-                    </div>
-                    <Switch
-                      checked={notifications.marketingEmails}
+                    </div>                    <Switch
+                      checked={notificationPrefs.marketingEmails}
                       onCheckedChange={(checked) =>
-                        setNotifications({...notifications, marketingEmails: checked})
+                        setNotificationPrefs({...notificationPrefs, marketingEmails: checked})
                       }
                     />
                   </div>
                 </div>
-              </div>
-
-              <Button onClick={handleNotificationUpdate} className="w-full md:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Preferencias
+              </div>              <Button 
+                onClick={handleNotificationUpdate} 
+                className="w-full md:w-auto"
+                disabled={updateNotificationsMutation.isPending}
+              >
+                {updateNotificationsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {updateNotificationsMutation.isPending ? 'Guardando...' : 'Guardar Preferencias'}
               </Button>
             </CardContent>
           </Card>
@@ -497,11 +619,17 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-              </div>
-
-              <Button onClick={handlePrivacyUpdate} className="w-full md:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Configuración
+              </div>              <Button 
+                onClick={handlePrivacyUpdate} 
+                className="w-full md:w-auto"
+                disabled={updatePrivacyMutation.isPending}
+              >
+                {updatePrivacyMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {updatePrivacyMutation.isPending ? 'Guardando...' : 'Guardar Configuración'}
               </Button>
             </CardContent>
           </Card>
@@ -560,111 +688,7 @@ export default function SettingsPage() {
               <Button variant="outline" className="w-full md:w-auto">
                 Cambiar Contraseña
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Billing Tab */}
-        <TabsContent value="billing" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de Facturación</CardTitle>
-              <CardDescription>
-                Gestiona tus métodos de pago y facturación
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Payment Methods */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Métodos de Pago</h4>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-12 bg-gradient-to-r from-blue-600 to-blue-400 rounded flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">VISA</span>
-                      </div>
-                      <div>
-                        <div className="font-medium">•••• •••• •••• 4242</div>
-                        <div className="text-sm text-muted-foreground">Expira 12/27</div>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Principal</Badge>
-                  </div>
-                </div>
-                <Button variant="outline">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Agregar Método de Pago
-                </Button>
-              </div>
-
-              <Separator />
-
-              {/* Billing History */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Historial de Facturación</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">Comisión Marzo 2025</div>
-                      <div className="text-sm text-muted-foreground">Trabajo: Diseño Logo</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">€45.00</div>
-                      <div className="text-sm text-muted-foreground">15 Mar 2025</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">Comisión Febrero 2025</div>
-                      <div className="text-sm text-muted-foreground">Trabajo: Branding Completo</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">€120.00</div>
-                      <div className="text-sm text-muted-foreground">28 Feb 2025</div>
-                    </div>
-                  </div>
-                </div>
-                <Button variant="outline">
-                  Ver Historial Completo
-                </Button>
-              </div>
-
-              <Separator />
-
-              {/* Tax Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Información Fiscal</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tax-id">NIF/CIF</Label>
-                    <Input
-                      id="tax-id"
-                      placeholder="Ingresa tu NIF o CIF"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="business-name">Nombre Comercial</Label>
-                    <Input
-                      id="business-name"
-                      placeholder="Nombre de tu empresa (opcional)"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="billing-address">Dirección de Facturación</Label>
-                  <Textarea
-                    id="billing-address"
-                    placeholder="Dirección completa para facturación"
-                    rows={3}
-                  />
-                </div>
-                <Button className="w-full md:w-auto">
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar Información Fiscal
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </CardContent>        </Card>
         </TabsContent>
       </Tabs>
     </div>

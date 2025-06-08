@@ -19,7 +19,6 @@ import {
   FileText, 
   Users, 
   Settings, 
-  CreditCard, 
   Shield, 
   Clock,
   CheckCircle,
@@ -86,27 +85,7 @@ const faqCategories = [
       {
         question: "¿Qué garantías tengo como cliente?",
         answer: "Ofrecemos un sistema de reseñas verificadas, perfiles verificados de profesionales y soporte al cliente. Si hay problemas, nuestro equipo de soporte está disponible para mediar."
-      }
-    ]
-  },
-  {
-    id: "payments",
-    title: "Pagos y Facturación",
-    icon: <CreditCard className="h-5 w-5" />,
-    questions: [
-      {
-        question: "¿Qué métodos de pago aceptan?",
-        answer: "Aceptamos tarjetas de crédito/débito, transferencias bancarias y PayPal. Los pagos se procesan de forma segura a través de nuestros socios de pago certificados."
-      },
-      {
-        question: "¿Cuándo se procesan los pagos?",
-        answer: "Los pagos se procesan según el acuerdo entre cliente y profesional. Ofrecemos opciones de pago por adelantado, al completar el trabajo o en hitos del proyecto."
-      },
-      {
-        question: "¿Cómo funciona la facturación?",
-        answer: "Generamos facturas automáticamente para todas las transacciones. Los profesionales pueden descargar facturas para su contabilidad y los clientes reciben comprobantes de pago."
-      }
-    ]
+      }    ]
   },
   {
     id: "security",
@@ -116,10 +95,6 @@ const faqCategories = [
       {
         question: "¿Cómo protegen mis datos personales?",
         answer: "Cumplimos con GDPR y utilizamos encriptación de extremo a extremo. Tus datos nunca se comparten con terceros sin tu consentimiento explícito."
-      },
-      {
-        question: "¿Son seguros los pagos en la plataforma?",
-        answer: "Sí, utilizamos procesadores de pago certificados PCI DSS y no almacenamos información sensible de tarjetas de crédito en nuestros servidores."
       },
       {
         question: "¿Cómo reporto un problema de seguridad?",
@@ -351,10 +326,8 @@ export default function SupportPage() {
                       <Select value={contactForm.category} onValueChange={(value) => setContactForm(prev => ({...prev, category: value}))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
+                        </SelectTrigger>                        <SelectContent>
                           <SelectItem value="technical">Problema Técnico</SelectItem>
-                          <SelectItem value="billing">Facturación</SelectItem>
                           <SelectItem value="account">Cuenta</SelectItem>
                           <SelectItem value="security">Seguridad</SelectItem>
                           <SelectItem value="general">Consulta General</SelectItem>

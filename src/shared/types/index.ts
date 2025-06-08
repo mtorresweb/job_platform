@@ -27,7 +27,6 @@ export interface Professional extends User {
   reviewCount: number;
   isVerified: boolean;
   specialties: string[];
-  hourlyRate?: number;
   availability: Availability[];
   location: Location;
 }
@@ -37,7 +36,6 @@ export interface Service {
   title: string;
   description: string;
   category: ServiceCategory;
-  price: number;
   duration: number; // en minutos
   professionalId: string;
   professional: Professional;
@@ -64,7 +62,6 @@ export interface Booking {
   status: BookingStatus;
   scheduledAt: Date;
   duration: number;
-  totalPrice: number;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -201,7 +198,6 @@ export interface ServiceForm {
   title: string;
   description: string;
   categoryId: string;
-  price: number;
   duration: number;
   tags: string[];
 }
@@ -209,7 +205,6 @@ export interface ServiceForm {
 export interface ProfileForm {
   name: string;
   bio?: string;
-  hourlyRate?: number;
   specialties: string[];
   location: Partial<Location>;
 }
@@ -220,12 +215,10 @@ export interface ProfileForm {
 
 export interface ServiceFilters {
   category?: string;
-  priceMin?: number;
-  priceMax?: number;
   rating?: number;
   location?: string;
   availability?: boolean;
-  sortBy?: "price" | "rating" | "newest" | "popular";
+  sortBy?: "rating" | "newest" | "popular";
   sortOrder?: "asc" | "desc";
 }
 

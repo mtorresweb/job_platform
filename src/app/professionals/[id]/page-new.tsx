@@ -41,15 +41,16 @@ export default function ProfessionalProfilePage() {
     error,
     refetch 
   } = useProfessional(professionalId);
-
   const handleContactProfessional = () => {
-    // TODO: Implement real messaging functionality
-    console.log("Contact professional:", professional?.id);
+    if (!professional) return;
+    // Redirect to messaging page with professional
+    window.location.href = `/messages/new?professionalId=${professional.id}&name=${encodeURIComponent(professional.user.name)}`;
   };
 
   const handleHireProfessional = () => {
-    // TODO: Implement real booking functionality  
-    console.log("Hire professional:", professional?.id);
+    if (!professional) return;
+    // Redirect to services page filtered by this professional
+    window.location.href = `/book?professionalId=${professional.id}`;
   };
 
   if (isLoading) {
@@ -271,10 +272,9 @@ export default function ProfessionalProfilePage() {
                                 <p className="text-sm text-foreground/70">
                                   Duración: {service.duration} minutos
                                 </p>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-medium text-primary">
-                                  ${service.price.toLocaleString()}
+                              </div>                              <div className="text-right">
+                                <div className="text-sm text-foreground/60">
+                                  {Math.floor(service.duration / 60)}h {service.duration % 60}min
                                 </div>
                                 <Button size="sm" className="mt-2" asChild>
                                   <Link href={`/services/${service.id}`}>
@@ -292,33 +292,7 @@ export default function ProfessionalProfilePage() {
                       </div>
                     )}
                   </CardContent>
-                </Card>
-
-                {/* Pricing */}
-                {professional.hourlyRate && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Tarifas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">Tarifa por hora:</span>
-                            <span className="font-medium">
-                              ${professional.hourlyRate.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-sm text-foreground/60">
-                          Las tarifas pueden variar según la complejidad del
-                          trabajo. Contacta para más detalles.
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
+                </Card>              </TabsContent>
 
               <TabsContent value="reviews" className="space-y-6">
                 <Card>
@@ -490,18 +464,15 @@ export default function ProfessionalProfilePage() {
             <Card className="sticky top-6">
               <CardHeader>
                 <CardTitle>Contactar Profesional</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {professional.hourlyRate && (
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">
-                      ${professional.hourlyRate.toLocaleString()}/hora
-                    </div>
-                    <div className="text-sm text-foreground/60">
-                      Tarifa por hora
-                    </div>
+              </CardHeader>              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-primary">
+                    Servicios Profesionales
                   </div>
-                )}
+                  <div className="text-sm text-foreground/60">
+                    Consulta precios directamente
+                  </div>
+                </div>
 
                 <Button
                   onClick={handleHireProfessional}

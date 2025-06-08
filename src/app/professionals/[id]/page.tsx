@@ -40,13 +40,16 @@ export default function ProfessionalProfilePage() {
     error,
     refetch 
   } = useProfessional(professionalId);
-
   const handleContactProfessional = () => {
-    console.log("Contact professional:", professional?.id);
+    if (!professional) return;
+    // Redirect to messaging page with professional
+    window.location.href = `/messages/new?professionalId=${professional.id}&name=${encodeURIComponent(professional.user.name)}`;
   };
 
   const handleBookService = (serviceId: string) => {
-    console.log("Book service:", serviceId);
+    if (!professional || !serviceId) return;
+    // Redirect to booking page with pre-filled data
+    window.location.href = `/book?professionalId=${professional.id}&serviceId=${serviceId}`;
   };
 
   if (isLoading) {
@@ -278,8 +281,8 @@ export default function ProfessionalProfilePage() {
                         <div className="flex justify-between items-start">                          <div className="flex-1">
                             <h3 className="font-semibold text-lg">{service.title}</h3>
                             <div className="flex items-center gap-4 mt-3">
-                              <span className="font-bold text-blue-600">
-                                ${service.price}
+                              <span className="text-sm text-foreground/60">
+                                {Math.floor(service.duration / 60)}h {service.duration % 60}min
                               </span>
                               <Badge variant="outline">
                                 {service.category.name}

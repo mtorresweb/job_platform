@@ -12,11 +12,8 @@ export interface SearchFilters {
     latitude: number;
     longitude: number;
   };
-
   // Service filters
   categoryId?: string;
-  minPrice?: number;
-  maxPrice?: number;
   duration?: number;
   tags?: string[];
 
@@ -32,9 +29,8 @@ export interface SearchFilters {
     start: string;
     end: string;
   };
-  
-  // Sorting
-  sortBy?: 'relevance' | 'price' | 'rating' | 'distance' | 'popularity' | 'newest';
+    // Sorting
+  sortBy?: 'relevance' | 'rating' | 'distance' | 'popularity' | 'newest';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -56,7 +52,6 @@ export interface Professional {
   reviewCount: number;
   isVerified: boolean;
   specialties: string[];
-  hourlyRate: number;
   address: string;
   city: string;
   state: string;
@@ -78,11 +73,6 @@ export interface SearchFacets {
   categories: Array<{
     id: string;
     name: string;
-    count: number;
-  }>;
-  priceRanges: Array<{
-    min: number;
-    max: number;
     count: number;
   }>;
   ratings: Array<{
@@ -277,13 +267,12 @@ export function buildSearchQuery(filters: SearchFilters): string {
   if (filters.categoryId) {
     parts.push(`category:${filters.categoryId}`);
   }
-  
-  if (filters.city) {
+    if (filters.city) {
     parts.push(`city:"${filters.city}"`);
   }
   
-  if (filters.minPrice && filters.maxPrice) {
-    parts.push(`price:${filters.minPrice}-${filters.maxPrice}`);
+  if (filters.duration) {
+    parts.push(`duration:${filters.duration}`);
   }
   
   if (filters.minRating) {
@@ -314,11 +303,9 @@ export function parseSearchQuery(query: string): SearchFilters {
   if (cityMatch) {
     filters.city = cityMatch[1];
   }
-  
-  const priceMatch = query.match(/price:(\d+)-(\d+)/);
-  if (priceMatch) {
-    filters.minPrice = parseInt(priceMatch[1]);
-    filters.maxPrice = parseInt(priceMatch[2]);
+    const durationMatch = query.match(/duration:(\d+)/);
+  if (durationMatch) {
+    filters.duration = parseInt(durationMatch[1]);
   }
   
   const ratingMatch = query.match(/rating:>=(\d+)/);

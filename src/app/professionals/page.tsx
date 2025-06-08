@@ -42,10 +42,8 @@ const LOCATIONS = [
 
 const SORT_OPTIONS = [
   { value: "rating", label: "Mejor calificados" },
-  { value: "price-low", label: "Precio: menor a mayor" },
-  { value: "price-high", label: "Precio: mayor a menor" },
-  { value: "recent", label: "Más recientes" },
   { value: "experience", label: "Más experiencia" },
+  { value: "recent", label: "Más recientes" },
 ];
 
 export default function ProfessionalsPage() {
@@ -97,14 +95,14 @@ export default function ProfessionalsPage() {
     e.preventDefault();
     // Search is handled by the debounced effect
   };
-
   const ProfessionalCard = ({
     professional,
     isListView = false,
   }: {
     professional: Professional;
     isListView?: boolean;
-  }) => (
+  }) => {
+    return (
     <Card
       className={`h-full hover:shadow-lg transition-shadow ${
         isListView ? "flex flex-row" : ""
@@ -176,21 +174,19 @@ export default function ProfessionalsPage() {
 
           <Separator />
 
-          <div className="flex items-center justify-between text-sm">
-            <div className="space-y-1">
+          <div className="flex items-center justify-between text-sm">            <div className="space-y-1">
               <div className="flex items-center gap-1 text-foreground/60">
                 <Users className="h-3 w-3" />
                 <span>{professional._count?.services || 0} servicios</span>
               </div>
-              <div className="font-medium text-primary">
-                ${professional.hourlyRate}/hora
+              <div className="text-sm text-foreground/60">
+                {professional.experience} años de experiencia
               </div>
             </div>
             <div className="text-right">
-              <div className="text-foreground/60">
-                {professional.experience} años exp.
-              </div>
-            </div>
+              <div className="text-sm text-foreground/60">
+                Verificado: {professional.isVerified ? 'Sí' : 'No'}
+              </div>            </div>
           </div>
 
           <div className={`flex gap-2 ${isListView ? "mt-auto" : ""}`}>
@@ -205,7 +201,8 @@ export default function ProfessionalsPage() {
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -369,13 +366,14 @@ export default function ProfessionalsPage() {
                   setSearchQuery("");
                   setSelectedLocation("Todas las ciudades");
                   setSortBy("rating");
-                }}
-              >
+                }}              >
                 Limpiar filtros
               </Button>
             </CardContent>
           </Card>
-        )}        {/* Load More - Future Enhancement */}
+        )}
+        
+        {/* Load More - Future Enhancement */}
         {!isLoading && !isError && professionals.length > 0 && (
           <div className="text-center mt-12">
             <Button variant="outline" size="lg" disabled>

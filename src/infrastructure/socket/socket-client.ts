@@ -163,14 +163,12 @@ export class SocketClient {
   }
 
   private setupEventHandlers() {
-    if (!this.socket) return;
-
-    this.socket.on("connect", () => {
-      console.log("Connected to server");
+    if (!this.socket) return;    this.socket.on("connect", () => {
+      // Connection successful - client is now connected to socket server
     });
 
     this.socket.on("disconnect", () => {
-      console.log("Disconnected from server");
+      // Client disconnected from socket server
     });
 
     this.socket.on("connect_error", (error) => {

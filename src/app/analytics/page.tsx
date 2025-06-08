@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { useUserAnalytics, usePlatformAnalytics, useTimeAnalytics, useClientSegmentation } from "@/shared/hooks/useAnalytics";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -53,66 +54,74 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  Loader2,
 } from "lucide-react";
 import { redirect } from "next/navigation";
-
-// Mock data for analytics
-const earningsData = [
-  { month: "Ene", earnings: 1200000, bookings: 15, clients: 8 },
-  { month: "Feb", earnings: 1450000, bookings: 18, clients: 12 },
-  { month: "Mar", earnings: 1680000, bookings: 22, clients: 15 },
-  { month: "Abr", earnings: 1890000, bookings: 25, clients: 18 },
-  { month: "May", earnings: 2340000, bookings: 31, clients: 22 },
-  { month: "Jun", earnings: 2150000, bookings: 28, clients: 20 },
-];
-
-const servicePerformance = [
-  { name: "Plomería", bookings: 45, revenue: 2250000, avgRating: 4.8, color: "#8884d8" },
-  { name: "Electricidad", bookings: 38, revenue: 1900000, avgRating: 4.9, color: "#82ca9d" },
-  { name: "Carpintería", bookings: 32, revenue: 1600000, avgRating: 4.7, color: "#ffc658" },
-  { name: "Pintura", bookings: 28, revenue: 1400000, avgRating: 4.6, color: "#ff7300" },
-  { name: "Limpieza", bookings: 52, revenue: 1300000, avgRating: 4.5, color: "#8dd1e1" },
-];
-
-const timeAnalytics = [
-  { hour: "08:00", bookings: 5 },
-  { hour: "09:00", bookings: 12 },
-  { hour: "10:00", bookings: 18 },
-  { hour: "11:00", bookings: 24 },
-  { hour: "12:00", bookings: 15 },
-  { hour: "13:00", bookings: 10 },
-  { hour: "14:00", bookings: 22 },
-  { hour: "15:00", bookings: 28 },
-  { hour: "16:00", bookings: 35 },
-  { hour: "17:00", bookings: 30 },
-  { hour: "18:00", bookings: 20 },
-  { hour: "19:00", bookings: 8 },
-];
-
-const clientSegmentation = [
-  { segment: "Regulares", value: 45, color: "#8884d8" },
-  { segment: "Nuevos", value: 30, color: "#82ca9d" },
-  { segment: "Premium", value: 15, color: "#ffc658" },
-  { segment: "Corporativos", value: 10, color: "#ff7300" },
-];
-
-const platformMetrics = [
-  { metric: "Total Profesionales", value: "5,247", change: "+12%", trend: "up" },
-  { metric: "Total Clientes", value: "18,392", change: "+8%", trend: "up" },
-  { metric: "Servicios Completados", value: "52,148", change: "+15%", trend: "up" },
-  { metric: "Ingresos Plataforma", value: "$0", change: "0%", trend: "neutral" },
-  { metric: "Calificación Promedio", value: "4.7", change: "+0.1", trend: "up" },
-  { metric: "Tiempo Respuesta", value: "2.3h", change: "-15%", trend: "up" },
-];
 
 export default function AnalyticsPage() {
   const { isAuthenticated, isProfessional } = useUserRole();
   const [timeRange, setTimeRange] = useState("6m");
   const [selectedTab, setSelectedTab] = useState("overview");
+  // Fetch analytics data
+  const { 
+    data: userAnalytics, 
+    isLoading: isLoadingUser, 
+    error: userError 
+  } = useUserAnalytics(timeRange);
+  
+  const { 
+    data: platformAnalytics, 
+    isLoading: isLoadingPlatform, 
+    error: platformError 
+  } = usePlatformAnalytics(timeRange);
+
+  const { 
+    data: timeAnalytics, 
+    isLoading: isLoadingTime, 
+    error: timeError 
+  } = useTimeAnalytics(timeRange);
+
+  const { 
+    data: clientSegmentation, 
+    isLoading: isLoadingSegmentation, 
+    error: segmentationError 
+  } = useClientSegmentation(timeRange);
 
   if (!isAuthenticated) {
     redirect("/auth/login");
   }
+  // Loading state
+  if (isLoadingUser || isLoadingPlatform || isLoadingTime || isLoadingSegmentation) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-custom py-8">
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Cargando analytics...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // Error state
+  if (userError || platformError || timeError || segmentationError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-custom py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-2">Error al cargar analytics</h1>            <p className="text-foreground/60">
+              {userError?.message || platformError?.message || timeError?.message || segmentationError?.message || 'Error desconocido'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const earningsData = userAnalytics?.monthlyData || [];
+  const servicePerformance = userAnalytics?.isProfessional ? userAnalytics.servicePerformance : [];
+  const platformMetrics = platformAnalytics?.metrics || [];
+  const timeData = timeAnalytics || [];
+  const segmentationData = clientSegmentation || [];
 
   const StatCard = ({ 
     title, 
@@ -193,74 +202,70 @@ export default function AnalyticsPage() {
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {isProfessional ? (
+          <TabsContent value="overview" className="space-y-6">            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">              {userAnalytics?.isProfessional ? (
                 <>
                   <StatCard
                     title="Ingresos Totales"
-                    value="$2,340,000"
-                    change="+15%"
-                    trend="up"
+                    value={`$${userAnalytics.totalEarnings?.toLocaleString() || '0'}`}
+                    change={`${userAnalytics.earningsGrowth > 0 ? '+' : ''}${userAnalytics.earningsGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.earningsGrowth > 0 ? "up" : userAnalytics.earningsGrowth < 0 ? "down" : "neutral"}
                     icon={DollarSign}
                     description="Sin comisiones, 100% para ti"
                   />
                   <StatCard
                     title="Reservas del Mes"
-                    value="31"
-                    change="+25%"
-                    trend="up"
+                    value={userAnalytics.totalBookings?.toString() || '0'}
+                    change={`${userAnalytics.bookingsGrowth > 0 ? '+' : ''}${userAnalytics.bookingsGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.bookingsGrowth > 0 ? "up" : userAnalytics.bookingsGrowth < 0 ? "down" : "neutral"}
                     icon={Calendar}
                   />
                   <StatCard
                     title="Clientes Únicos"
-                    value="22"
-                    change="+18%"
-                    trend="up"
+                    value={userAnalytics.uniqueClients?.toString() || '0'}
+                    change={`${userAnalytics.clientsGrowth > 0 ? '+' : ''}${userAnalytics.clientsGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.clientsGrowth > 0 ? "up" : userAnalytics.clientsGrowth < 0 ? "down" : "neutral"}
                     icon={Users}
                   />
                   <StatCard
                     title="Calificación"
-                    value="4.8"
-                    change="+0.2"
-                    trend="up"
+                    value={userAnalytics.avgRating?.toFixed(1) || '0.0'}
+                    change={`${userAnalytics.ratingGrowth > 0 ? '+' : ''}${userAnalytics.ratingGrowth?.toFixed(1) || 0}`}
+                    trend={userAnalytics.ratingGrowth > 0 ? "up" : userAnalytics.ratingGrowth < 0 ? "down" : "neutral"}
                     icon={Star}
                   />
                 </>
-              ) : (
+              ) : userAnalytics && !userAnalytics.isProfessional ? (
                 <>
                   <StatCard
                     title="Servicios Utilizados"
-                    value="15"
-                    change="+20%"
-                    trend="up"
+                    value={userAnalytics.totalBookings?.toString() || '0'}
+                    change={`${userAnalytics.bookingsGrowth > 0 ? '+' : ''}${userAnalytics.bookingsGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.bookingsGrowth > 0 ? "up" : userAnalytics.bookingsGrowth < 0 ? "down" : "neutral"}
                     icon={Activity}
-                  />
-                  <StatCard
+                  />                  <StatCard
                     title="Gasto Total"
-                    value="$850,000"
-                    change="+5%"
-                    trend="up"
+                    value={`$${userAnalytics.totalSpent?.toLocaleString() || '0'}`}
+                    change={`${userAnalytics.spentGrowth > 0 ? '+' : ''}${userAnalytics.spentGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.spentGrowth > 0 ? "up" : userAnalytics.spentGrowth < 0 ? "down" : "neutral"}
                     icon={DollarSign}
                   />
                   <StatCard
                     title="Profesionales Favoritos"
-                    value="7"
-                    change="+2"
-                    trend="up"
+                    value={userAnalytics.favoriteProfessionals?.toString() || '0'}
+                    change={`${userAnalytics.favoritesGrowth > 0 ? '+' : ''}${userAnalytics.favoritesGrowth?.toFixed(1) || 0}%`}
+                    trend={userAnalytics.favoritesGrowth > 0 ? "up" : userAnalytics.favoritesGrowth < 0 ? "down" : "neutral"}
                     icon={Users}
-                  />
-                  <StatCard
+                  />                  <StatCard
                     title="Ahorro en Comisiones"
-                    value="$127,500"
+                    value={`$${((userAnalytics.totalSpent || 0) * 0.15).toLocaleString()}`}
                     change="∞"
                     trend="up"
                     icon={Target}
                     description="15% que no pagaste en otras plataformas"
                   />
                 </>
-              )}
+              ) : null}
             </div>
 
             {/* Main Charts */}
@@ -367,15 +372,14 @@ export default function AnalyticsPage() {
                     Horas pico de actividad en la plataforma
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={timeAnalytics}>
+                <CardContent>                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={timeData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="hour" />
                       <YAxis />
                       <Tooltip />
                       <Line 
-                        type="monotone" 
+                        type="monotone"
                         dataKey="bookings" 
                         stroke="#8884d8" 
                         strokeWidth={2}
@@ -393,11 +397,10 @@ export default function AnalyticsPage() {
                     Distribución de tu base de clientes
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                <CardContent>                  <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={clientSegmentation}
+                        data={segmentationData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -406,7 +409,7 @@ export default function AnalyticsPage() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {clientSegmentation.map((entry, index) => (
+                        {segmentationData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -526,10 +529,10 @@ export default function AnalyticsPage() {
                       Dinero que te has ahorrado al usar nuestra plataforma gratuita
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-green-600 mb-2">$127,500</div>
+                  <CardContent>                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">                      <div className="text-center">
+                        <div className="text-3xl font-bold text-green-600 mb-2">
+                          ${userAnalytics && !userAnalytics.isProfessional ? ((userAnalytics.totalSpent || 0) * 0.15).toLocaleString() : '0'}
+                        </div>
                         <p className="text-sm text-foreground/70">Ahorrado en comisiones</p>
                         <p className="text-xs text-foreground/50 mt-1">
                           15% que no pagaste vs otras plataformas
