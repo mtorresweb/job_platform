@@ -20,14 +20,16 @@ import {
   Users, 
   Settings, 
   Shield, 
-  Clock,
   CheckCircle,
   AlertCircle,
   Send,
   Book,
   Video,
-  Download
+  Download,
+  Loader2
 } from "lucide-react";
+import { useSubmitContactForm } from "@/shared/hooks/useContact";
+import { ContactFormData } from "@/shared/utils/contact-api";
 
 // FAQ Data
 const faqCategories = [
@@ -139,15 +141,17 @@ const supportResources = [
 export default function SupportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [contactForm, setContactForm] = useState({
+  const [contactForm, setContactForm] = useState<ContactFormData>({
     name: "",
     email: "",
-    category: "",
-    priority: "",
     subject: "",
-    message: ""
+    message: "",
+    category: "general",
+    priority: "medium",
+    phone: ""
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submitContactMutation = useSubmitContactForm();
 
   const filteredFAQs = faqCategories.filter(category => {
     if (selectedCategory !== "all" && category.id !== selectedCategory) return false;
@@ -164,21 +168,25 @@ export default function SupportPage() {
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await submitContactMutation.mutateAsync(contactForm);
+      
+      // Reset form on success
       setContactForm({
         name: "",
         email: "",
-        category: "",
-        priority: "",
         subject: "",
-        message: ""
+        message: "",
+        category: "general",
+        priority: "medium",
+        phone: ""
       });
-      // Show success message
-    }, 2000);
+      
+    } catch (error) {
+      // Error handling is done in the hook
+      console.error("Support contact form error:", error);
+    }
   };
 
   return (
@@ -320,6 +328,17 @@ export default function SupportPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono (opcional)</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={contactForm.phone}
+                      onChange={(e) => setContactForm(prev => ({...prev, phone: e.target.value}))}
+                      placeholder="+34 600 123 456"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="category">Categoría</Label>
@@ -327,10 +346,11 @@ export default function SupportPage() {
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona categoría" />
                         </SelectTrigger>                        <SelectContent>
-                          <SelectItem value="technical">Problema Técnico</SelectItem>
-                          <SelectItem value="account">Cuenta</SelectItem>
-                          <SelectItem value="security">Seguridad</SelectItem>
                           <SelectItem value="general">Consulta General</SelectItem>
+                          <SelectItem value="technical">Problema Técnico</SelectItem>
+                          <SelectItem value="billing">Facturación</SelectItem>
+                          <SelectItem value="feedback">Comentarios</SelectItem>
+                          <SelectItem value="report">Reportar Problema</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -372,10 +392,10 @@ export default function SupportPage() {
                     />
                   </div>
 
-                  <Button type="submit" disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? (
+                  <Button type="submit" disabled={submitContactMutation.isPending} className="w-full">
+                    {submitContactMutation.isPending ? (
                       <>
-                        <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Enviando...
                       </>
                     ) : (
