@@ -53,6 +53,9 @@ model User {
   // Logs de actividad (auditoría)
   activityLogs     ActivityLog[]
   
+  // Envíos de contacto
+  contactSubmissions ContactSubmission[]
+  
   @@map("users")
 }
 
@@ -319,6 +322,33 @@ model ActivityLog {
   user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   @@map("activity_logs")
+}
+
+// ==========================================
+// MODELOS DE SOPORTE Y CONTACTO
+// ==========================================
+
+model ContactSubmission {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  subject     String
+  message     String
+  category    String   @default("general") // general, technical, billing, feedback, report
+  priority    String   @default("medium")  // low, medium, high, urgent
+  phone       String?
+  status      String   @default("pending") // pending, in_progress, resolved, closed
+  userId      String?
+  metadata    Json?    // Additional metadata like user agent, IP, etc.
+  response    String?  // Support team response
+  respondedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("contact_submissions")
 }
 
 // ==========================================
