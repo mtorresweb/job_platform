@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,17 +34,26 @@ import {
   Clock,
   CheckCircle,
   MessageSquare,
-  Phone,
   User,
   Plus,
   Edit,
   AlertCircle,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
-import { useUserBookings, useProfessionalBookings } from "@/shared/hooks/useBookings";
-import { BookingStatus } from "@/shared/utils/bookings-api";
+import { toast } from "sonner";
+import { 
+  useUserBookings, 
+  useProfessionalBookings, 
+  useConfirmBooking, 
+  useCancelBooking,
+  useRescheduleBooking,
+  useCompleteBooking,
+} from "@/shared/hooks/useBookings";
+import { useCreateReview } from "@/shared/hooks/useReviews";
+import { Booking, BookingStatus } from "@/shared/utils/bookings-api";
 
 const getStatusColor = (status: BookingStatus) => {
   switch (status) {
@@ -80,11 +90,21 @@ const getStatusLabel = (status: BookingStatus) => {
 };
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState<"confirm" | "cancel" | "reschedule" | null>(null);
+  const [actionBooking, setActionBooking] = useState<Booking | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionDate, setActionDate] = useState<string>("");
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
   // Get user role to determine which bookings to show
   const { isProfessional, user } = useUserRole();
 
@@ -104,6 +124,12 @@ export default function BookingsPage() {
   } = useProfessionalBookings({
     filters: filterStatus !== "all" ? { status: [filterStatus as BookingStatus] } : undefined
   });
+
+  const confirmBookingMutation = useConfirmBooking();
+  const cancelBookingMutation = useCancelBooking();
+  const rescheduleBookingMutation = useRescheduleBooking();
+  const completeBookingMutation = useCompleteBooking();
+  const createReviewMutation = useCreateReview();
 
   // Determine which data to use
   const bookingsData = isProfessional ? professionalBookingsData : clientBookingsData;
@@ -143,6 +169,112 @@ export default function BookingsPage() {
   const todayBookings = bookings.filter(b => 
     format(new Date(b.scheduledAt), "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
   );
+
+  const openActionDialog = (type: "confirm" | "cancel" | "reschedule", booking: Booking) => {
+    setActionType(type);
+    setActionBooking(booking);
+    setActionDialogOpen(true);
+    setActionMessage("");
+    setActionDate(
+      type === "reschedule"
+        ? format(new Date(booking.scheduledAt), "yyyy-MM-dd'T'HH:mm")
+        : ""
+    );
+  };
+
+  const closeActionDialog = () => {
+    setActionDialogOpen(false);
+    setActionType(null);
+    setActionBooking(null);
+    setActionMessage("");
+    setActionDate("");
+  };
+
+  const openReviewDialog = (booking: Booking) => {
+    setReviewBooking(booking);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewDialogOpen(true);
+  };
+
+  const closeReviewDialog = () => {
+    setReviewDialogOpen(false);
+    setReviewBooking(null);
+    setReviewRating(5);
+    setReviewComment("");
+  };
+
+  const handleContact = (userId: string) => {
+    const search = userId ? `?conversationWith=${userId}` : "";
+    router.push(`/messages${search}`);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewBooking) return;
+
+    if (reviewComment.trim() && reviewComment.trim().length < 10) {
+      toast.error("El comentario debe tener al menos 10 caracteres");
+      return;
+    }
+
+    try {
+      console.log('[handleSubmitReview] submit', {
+        bookingId: reviewBooking.id,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      await createReviewMutation.mutateAsync({
+        bookingId: reviewBooking.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+      console.log('[handleSubmitReview] success');
+      closeReviewDialog();
+    } catch (error) {
+      console.error('[handleSubmitReview] error', error);
+      toast.error("No se pudo crear la reseña");
+    }
+  };
+
+  const handleActionSubmit = async () => {
+    if (!actionBooking || !actionType) return;
+
+    try {
+      if (actionType === "confirm") {
+        await confirmBookingMutation.mutateAsync({ id: actionBooking.id, message: actionMessage || undefined });
+      } else if (actionType === "cancel") {
+        await cancelBookingMutation.mutateAsync({ id: actionBooking.id, reason: actionMessage || undefined });
+      } else if (actionType === "reschedule") {
+        if (!actionDate) {
+          toast.error("Selecciona una nueva fecha y hora");
+          return;
+        }
+        await rescheduleBookingMutation.mutateAsync({
+          id: actionBooking.id,
+          scheduledAt: new Date(actionDate).toISOString(),
+          message: actionMessage || undefined,
+        });
+      }
+      closeActionDialog();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleComplete = async (booking: Booking) => {
+    try {
+      await completeBookingMutation.mutateAsync(booking.id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const isActionLoading =
+    confirmBookingMutation.isPending ||
+    cancelBookingMutation.isPending ||
+    rescheduleBookingMutation.isPending;
+
+  const isCompleting = completeBookingMutation.isPending;
 
   // Loading state
   if (isLoading) {
@@ -418,10 +550,10 @@ export default function BookingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="pending">Pendientes</SelectItem>
-                      <SelectItem value="confirmed">Confirmadas</SelectItem>
-                      <SelectItem value="completed">Completadas</SelectItem>
-                      <SelectItem value="cancelled">Canceladas</SelectItem>
+                      <SelectItem value="PENDING">Pendientes</SelectItem>
+                      <SelectItem value="CONFIRMED">Confirmadas</SelectItem>
+                      <SelectItem value="COMPLETED">Completadas</SelectItem>
+                      <SelectItem value="CANCELLED">Canceladas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -509,14 +641,12 @@ export default function BookingsPage() {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleContact(otherPerson.id)}
+                                >
                                   <MessageSquare className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Phone className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Edit className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
@@ -545,25 +675,103 @@ export default function BookingsPage() {
                               )}
                             </div>
 
-                            {booking.status === BookingStatus.PENDING && (
-                              <div className="flex gap-2 mt-4 pt-4 border-t">
-                                <Button size="sm" className="flex-1">
-                                  Confirmar
-                                </Button>
-                                <Button variant="outline" size="sm" className="flex-1">
-                                  Reagendar
-                                </Button>
-                                <Button variant="outline" size="sm">
+                            {booking.status === BookingStatus.CANCELLED && booking.cancellationReason && (
+                              <div className="mt-3 text-sm text-destructive">
+                                Motivo de cancelación: {booking.cancellationReason}
+                              </div>
+                            )}
+
+                            {([BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) && (
+                              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                                {booking.status === BookingStatus.PENDING && (
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 min-w-[140px]"
+                                    disabled={isActionLoading}
+                                    onClick={() => openActionDialog("confirm", booking)}
+                                  >
+                                    Confirmar
+                                  </Button>
+                                )}
+                                {!isProfessional && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 min-w-[140px]"
+                                    disabled={isActionLoading}
+                                    onClick={() => openActionDialog("reschedule", booking)}
+                                  >
+                                    Reagendar
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 min-w-[140px]"
+                                  disabled={isActionLoading}
+                                  onClick={() => openActionDialog("cancel", booking)}
+                                >
                                   Cancelar
                                 </Button>
                               </div>
                             )}
 
-                            {booking.status === BookingStatus.CONFIRMED && bookingDate <= new Date() && (
-                              <div className="flex gap-2 mt-4 pt-4 border-t">
-                                <Button size="sm" className="flex-1">
-                                  Marcar como Completada
+                            {isProfessional && [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS].includes(booking.status) && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                <Button
+                                  size="sm"
+                                  className="min-w-[160px]"
+                                  disabled={isCompleting}
+                                  onClick={() => handleComplete(booking)}
+                                >
+                                  Marcar como completada
                                 </Button>
+                              </div>
+                            )}
+
+                            {booking.status === BookingStatus.COMPLETED && (
+                              <div className="mt-4 pt-4 border-t space-y-3">
+                                {booking.review ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                          <Star
+                                            key={i}
+                                            className={`h-4 w-4 ${
+                                              i < booking.review!.rating
+                                                ? "fill-yellow-400 text-yellow-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="text-sm text-foreground/70">{booking.review.rating}/5</span>
+                                    </div>
+
+                                    {booking.review.comment && (
+                                      <p className="text-sm text-foreground/80">{booking.review.comment}</p>
+                                    )}
+
+                                    {booking.review.response && (
+                                      <div className="rounded-md bg-muted p-3 text-sm text-foreground/80">
+                                        <span className="font-medium">Respuesta del profesional</span>
+                                        <p className="mt-1">{booking.review.response}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : !isProfessional ? (
+                                  <Button
+                                    size="sm"
+                                    className="min-w-[160px]"
+                                    onClick={() => openReviewDialog(booking)}
+                                    disabled={createReviewMutation.isPending}
+                                  >
+                                    Dejar reseña
+                                  </Button>
+                                ) : (
+                                  <p className="text-sm text-foreground/60">Pendiente reseña del cliente.</p>
+                                )}
                               </div>
                             )}
                           </CardContent>
@@ -591,6 +799,116 @@ export default function BookingsPage() {
           </div>
         </div>
       </div>
+      <Dialog open={actionDialogOpen} onOpenChange={(open) => open ? setActionDialogOpen(true) : closeActionDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === "confirm" && "Confirmar reserva"}
+              {actionType === "cancel" && "Cancelar reserva"}
+              {actionType === "reschedule" && "Reagendar reserva"}
+            </DialogTitle>
+            <DialogDescription>
+              {actionBooking ? `Servicio: ${actionBooking.service.title}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {actionType === "reschedule" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nueva fecha y hora</label>
+                <Input
+                  type="datetime-local"
+                  value={actionDate}
+                  onChange={(e) => setActionDate(e.target.value)}
+                  min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Mensaje (opcional)
+              </label>
+              <Textarea
+                placeholder={actionType === "cancel" ? "Explica la razón de la cancelación" : "Agrega un mensaje para la otra parte"}
+                value={actionMessage}
+                onChange={(e) => setActionMessage(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeActionDialog} disabled={isActionLoading}>
+              Cerrar
+            </Button>
+            <Button onClick={handleActionSubmit} disabled={isActionLoading}>
+              {actionType === "confirm" && "Confirmar"}
+              {actionType === "cancel" && "Cancelar"}
+              {actionType === "reschedule" && "Guardar cambio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={(open) => open ? setReviewDialogOpen(true) : closeReviewDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Calificar servicio</DialogTitle>
+            <DialogDescription>
+              {reviewBooking ? `Servicio: ${reviewBooking.service.title}` : "Califica la experiencia completada"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Calificación</label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={value <= reviewRating ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setReviewRating(value)}
+                    disabled={createReviewMutation.isPending}
+                  >
+                    <Star
+                      className={
+                        value <= reviewRating
+                          ? "h-4 w-4 fill-yellow-400 text-yellow-400"
+                          : "h-4 w-4 text-foreground/50"
+                      }
+                    />
+                  </Button>
+                ))}
+                <span className="text-sm text-foreground/70">{reviewRating}/5</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Comentario (opcional)</label>
+              <Textarea
+                placeholder="Describe tu experiencia con el servicio"
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                disabled={createReviewMutation.isPending}
+              />
+              <p className="text-xs text-foreground/60">
+                Mínimo 10 caracteres si decides escribir un comentario.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeReviewDialog} disabled={createReviewMutation.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitReview} disabled={createReviewMutation.isPending}>
+              Enviar reseña
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

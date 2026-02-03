@@ -39,7 +39,7 @@ export const MESSAGES_QUERY_KEYS = {
 
 // Hooks for fetching data
 export function useConversations(params: ConversationParams = {}) {
-  const { socketClient } = useSocket();
+  const { socketClient, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -49,7 +49,8 @@ export function useConversations(params: ConversationParams = {}) {
   });
   // Subscribe to real-time updates
   useEffect(() => {
-    if (!socketClient.isConnected()) return;    const handleNewMessage = () => {
+    if (!isConnected) return;
+    const handleNewMessage = () => {
       // Update conversation list
       queryClient.invalidateQueries({ 
         queryKey: MESSAGES_QUERY_KEYS.conversations() 
@@ -70,7 +71,7 @@ export function useConversations(params: ConversationParams = {}) {
       socketClient.off('new_message', handleNewMessage);
       socketClient.off('message_read', handleMessageRead);
     };
-  }, [socketClient, queryClient]);
+  }, [socketClient, queryClient, isConnected]);
 
   return query;
 }
@@ -85,7 +86,7 @@ export function useConversation(id: string) {
 }
 
 export function useMessages(conversationId: string, params: MessageParams = {}) {
-  const { socketClient } = useSocket();
+  const { socketClient, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
   const query = useInfiniteQuery({
@@ -100,31 +101,53 @@ export function useMessages(conversationId: string, params: MessageParams = {}) 
   });
   // Subscribe to real-time updates for this conversation
   useEffect(() => {
-    if (!socketClient.isConnected() || !conversationId) return;
+    if (!isConnected || !conversationId) return;
 
     // Join conversation room
     socketClient.joinConversation(conversationId);
 
     const handleNewMessage = (...args: unknown[]) => {
-      const data = args[0] as {
-        conversationId: string;
-        message: Message;
-      };
-      if (data.conversationId === conversationId) {
-        // Add new message to cache
-        queryClient.setQueryData(
-          MESSAGES_QUERY_KEYS.messagesList(conversationId, params),
-          (oldData: InfiniteMessagesData | undefined) => {
-            if (!oldData) return oldData;
-            
-            const firstPage = oldData.pages[0];
-            if (firstPage) {
-              firstPage.messages.unshift(data.message);
-            }
+      const raw = args[0] as
+        | { conversationId: string; message: Message }
+        | (Message & { conversationId?: string; type?: string; sentAt?: string });
+
+      // Support both payload shapes: {conversationId, message} and raw message object
+      const incomingMessage = (raw as { message?: Message }).message ?? (raw as Message);
+      const convId = (raw as { conversationId?: string }).conversationId || (incomingMessage as { conversationId?: string }).conversationId;
+
+      if (convId !== conversationId) return;
+
+      const normalizedMessage: Message = {
+        ...incomingMessage,
+        conversationId: convId,
+        messageType: (incomingMessage as { messageType?: Message["messageType"]; type?: string }).messageType || (incomingMessage as { type?: string }).type || MessageType.TEXT,
+        createdAt: (incomingMessage as { createdAt?: string; sentAt?: string }).createdAt || (incomingMessage as { sentAt?: string }).sentAt || new Date().toISOString(),
+        sender: incomingMessage.sender || {
+          id: (incomingMessage as { senderId?: string }).senderId || 'unknown',
+          name: 'Usuario',
+        },
+      } as Message;
+
+      // Add new message to cache
+      queryClient.setQueryData(
+        MESSAGES_QUERY_KEYS.messagesList(conversationId, params),
+        (oldData: InfiniteMessagesData | undefined) => {
+          if (!oldData) return oldData;
+
+          const pages = [...oldData.pages];
+          if (!pages[0]) return oldData;
+          const existing = new Set(pages[0].messages.map((m) => m.id));
+          if (existing.has(normalizedMessage.id)) {
+            // Already present; no-op
             return oldData;
           }
-        );
-      }
+          pages[0] = {
+            ...pages[0],
+            messages: [...pages[0].messages, normalizedMessage],
+          };
+          return { ...oldData, pages };
+        }
+      );
     };
 
     const handleMessageRead = (...args: unknown[]) => {
@@ -148,13 +171,13 @@ export function useMessages(conversationId: string, params: MessageParams = {}) 
       socketClient.off('message_read', handleMessageRead);
       socketClient.leaveConversation(conversationId);
     };
-  }, [socketClient, conversationId, queryClient, params]);
+  }, [socketClient, conversationId, queryClient, params, isConnected]);
 
   return query;
 }
 
 export function useUnreadCount() {
-  const { socketClient } = useSocket();
+  const { socketClient, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -165,7 +188,7 @@ export function useUnreadCount() {
 
   // Subscribe to real-time updates
   useEffect(() => {
-    if (!socketClient.isConnected()) return;
+    if (!isConnected) return;
 
     const handleNewMessage = () => {
       queryClient.invalidateQueries({ 
@@ -186,7 +209,7 @@ export function useUnreadCount() {
       socketClient.off('new_message', handleNewMessage);
       socketClient.off('message_read', handleMessageRead);
     };
-  }, [socketClient, queryClient]);
+  }, [socketClient, queryClient, isConnected]);
 
   return query;
 }
@@ -236,9 +259,62 @@ export function useSendMessage() {
       }
       
       // Also send via API for persistence
-      return messagesApi.sendMessage(data);
+      const { senderId, ...payload } = data;
+      return messagesApi.sendMessage(payload);
     },
-    onSuccess: () => {
+    onMutate: async (data) => {
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMessage = {
+        id: tempId,
+        conversationId: data.conversationId,
+        senderId: data.senderId || 'self',
+        content: data.content,
+        messageType: data.messageType || MessageType.TEXT,
+        isRead: false,
+        readAt: null,
+        createdAt: new Date().toISOString(),
+        sender: {
+          id: data.senderId || 'self',
+          name: 'Tú',
+        },
+      } as unknown as Message;
+
+      queryClient.setQueriesData<InfiniteMessagesData>(
+        { queryKey: MESSAGES_QUERY_KEYS.messages(data.conversationId) },
+        (oldData) => {
+          if (!oldData) return oldData;
+          const pages = [...oldData.pages];
+          if (!pages[0]) return oldData;
+          const existing = new Set(pages[0].messages.map((m) => m.id));
+          if (existing.has(optimisticMessage.id)) return oldData;
+          const firstPage = { ...pages[0], messages: [...pages[0].messages, optimisticMessage] };
+          pages[0] = firstPage;
+          return { ...oldData, pages };
+        }
+      );
+
+      return { tempId, conversationId: data.conversationId };
+    },
+    onSuccess: (savedMessage, _data, context) => {
+      // Replace optimistic message (if present) with saved message
+      queryClient.setQueriesData<InfiniteMessagesData>(
+        { queryKey: MESSAGES_QUERY_KEYS.messages(savedMessage.conversationId) },
+        (oldData) => {
+          if (!oldData) return oldData;
+          const pages = [...oldData.pages];
+          if (!pages[0]) return oldData;
+          const updatedMessages = pages[0].messages
+            .filter((msg) => msg.id !== savedMessage.id)
+            .map((msg) => (msg.id === context?.tempId ? savedMessage : msg));
+
+          if (!updatedMessages.some((m) => m.id === savedMessage.id)) {
+            updatedMessages.push(savedMessage);
+          }
+          pages[0] = { ...pages[0], messages: updatedMessages };
+          return { ...oldData, pages };
+        }
+      );
+
       // Update conversations list
       queryClient.invalidateQueries({ 
         queryKey: MESSAGES_QUERY_KEYS.conversations() 
@@ -249,7 +325,21 @@ export function useSendMessage() {
         queryKey: MESSAGES_QUERY_KEYS.unreadCount() 
       });
     },
-    onError: (error: ApiError) => {
+    onError: (error: ApiError, data, context) => {
+      // Rollback optimistic message on failure
+      if (context?.tempId) {
+        queryClient.setQueriesData<InfiniteMessagesData>(
+          { queryKey: MESSAGES_QUERY_KEYS.messages(data.conversationId) },
+          (oldData) => {
+            if (!oldData) return oldData;
+            const pages = [...oldData.pages];
+            if (!pages[0]) return oldData;
+            const filtered = pages[0].messages.filter((msg) => msg.id !== context.tempId);
+            pages[0] = { ...pages[0], messages: filtered };
+            return { ...oldData, pages };
+          }
+        );
+      }
       toast.error(error.message || 'Error al enviar mensaje');
     },
   });

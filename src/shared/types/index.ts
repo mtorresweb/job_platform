@@ -9,9 +9,21 @@ export interface User {
   name: string;
   role: UserRole;
   isEmailVerified: boolean;
+  isActive: boolean;
   avatar?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   createdAt: Date;
   updatedAt: Date;
+  lastLoginAt?: Date;
+  profileCompleted: boolean;
+  professional?: Professional;
+  acceptedTermsAt?: Date;
+  acceptedPrivacyAt?: Date;
+  dataRetentionExpiry?: Date;
 }
 
 export enum UserRole {
@@ -184,6 +196,26 @@ export interface RegisterForm {
   acceptTerms: boolean;
 }
 
+export interface BaseProfileUpdateData {
+  name: string;
+  avatar?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+}
+
+export interface ProfessionalProfileUpdateData extends BaseProfileUpdateData {
+  bio: string;
+  experience: number;
+  specialties: string[];
+}
+
+export type ProfileUpdateData =
+  | BaseProfileUpdateData
+  | ProfessionalProfileUpdateData;
+
 export interface RegisterFormData {
   name: string;
   email: string;
@@ -198,6 +230,7 @@ export interface ServiceForm {
   title: string;
   description: string;
   categoryId: string;
+  price: number;
   duration: number;
   tags: string[];
 }

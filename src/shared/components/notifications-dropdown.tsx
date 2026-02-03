@@ -14,7 +14,6 @@ import {
   Calendar,
   Star,
   Clock,
-  CheckCheck,
   User,
   ShieldCheck,
   AlertCircle
@@ -22,8 +21,6 @@ import {
 
 import {
   useNotifications,
-  useMarkNotificationAsRead,
-  useMarkAllNotificationsAsRead,
   Notification
 } from "@/shared/hooks/useNotifications";
 
@@ -61,33 +58,16 @@ const formatDate = (date: Date | string) => {
 export function NotificationsDropdown() {
   // Fetch recent notifications (limit to 5)
   const { data, isLoading } = useNotifications({ limit: 5 });
-  const { mutate: markAsRead } = useMarkNotificationAsRead();
-  const { mutate: markAllAsRead } = useMarkAllNotificationsAsRead();
     // Safe access to data with proper fallbacks
   const notifications = (data as { notifications?: Notification[]; data?: { notifications?: Notification[] } })?.notifications || 
                        (data as { notifications?: Notification[]; data?: { notifications?: Notification[] } })?.data?.notifications || [];
   const unreadCount = (data as { unreadCount?: number; data?: { unreadCount?: number } })?.unreadCount || 
                      (data as { unreadCount?: number; data?: { unreadCount?: number } })?.data?.unreadCount || 0;
 
-  const handleMarkAsRead = (notificationId: string) => {
-    markAsRead(notificationId);
-  };
-
   return (
     <div className="w-[380px] max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between p-4">
         <h4 className="text-sm font-medium">Notificaciones</h4>
-        {unreadCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs h-8"
-            onClick={() => markAllAsRead()}
-          >
-            <CheckCheck className="mr-2 h-3 w-3" />
-            Marcar todas como leídas
-          </Button>
-        )}
       </div>
       <Separator />
 
@@ -132,16 +112,6 @@ export function NotificationsDropdown() {
                       <span className="text-xs text-muted-foreground">
                         {formatDate(notification.createdAt)}
                       </span>
-                      {!notification.isRead && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => handleMarkAsRead(notification.id)}
-                        >
-                          Marcar como leída
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>

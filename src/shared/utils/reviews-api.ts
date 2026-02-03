@@ -26,6 +26,16 @@ export interface Review {
   };
 }
 
+export interface CreateReviewResponse {
+  review: Review;
+  professional?: {
+    id: string;
+    userId: string;
+    rating: number;
+    reviewCount: number;
+  };
+}
+
 export interface CreateReviewData {
   bookingId: string;
   rating: number;
@@ -90,9 +100,11 @@ class ReviewsApiService {
   }
 
   // Create review
-  async createReview(data: CreateReviewData): Promise<Review> {
-    const response = await apiClient.post<Review>(API_ENDPOINTS.REVIEWS.CREATE, data);
-    return response.data;
+  async createReview(data: CreateReviewData): Promise<CreateReviewResponse> {
+    const response = await apiClient.post<CreateReviewResponse>(API_ENDPOINTS.REVIEWS.CREATE, data);
+    // API returns { success, data: { review, professional } }
+    const raw = (response as any).data ?? response;
+    return (raw as any).data ?? raw;
   }
 
   // Update review (professional response)

@@ -23,8 +23,6 @@ import {
   Calendar,
   Star,
   Clock,
-  Trash2,
-  Check,
   User,
   ShieldCheck,
   AlertCircle
@@ -32,9 +30,7 @@ import {
 
 import { 
   useNotifications, 
-  useMarkNotificationAsRead, 
   useMarkAllNotificationsAsRead, 
-  useDeleteNotification,
   Notification
 } from "@/shared/hooks/useNotifications";
 
@@ -131,9 +127,7 @@ export default function NotificationsPage() {
     unreadOnly: activeTab === "unread"
   });
     // Mutations
-  const { mutate: markAsRead } = useMarkNotificationAsRead();
   const { mutate: markAllAsRead } = useMarkAllNotificationsAsRead();
-  const { mutate: deleteNotification } = useDeleteNotification();
   
   // Extract notifications from data with proper type assertion
   const notifications = (data as { notifications?: Notification[]; data?: { notifications?: Notification[] } })?.notifications || 
@@ -388,75 +382,45 @@ export default function NotificationsPage() {
                                 {notification.message}
                               </p>
 
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {notification.type === "MESSAGE_RECEIVED" && "Mensaje"}
-                                    {notification.type === "BOOKING_CONFIRMED" && "Reserva confirmada"}
-                                    {notification.type === "BOOKING_CANCELLED" && "Reserva cancelada"}
-                                    {notification.type === "BOOKING_REMINDER" && "Recordatorio"}
-                                    {notification.type === "REVIEW_RECEIVED" && "Reseña"}                                    {notification.type === "SERVICE_COMPLETED" && "Servicio completado"}
-                                    {notification.type === "BOOKING_CONFIRMED" && "Reserva confirmada"}
-                                    {notification.type === "SYSTEM_NOTIFICATION" && "Sistema"}
-                                    {notification.type === "PROFILE_VERIFIED" && "Verificación"}
-                                    {notification.type === "ACCOUNT_UPDATE" && "Cuenta"}
-                                    {notification.type === "ALERT" && "Alerta"}                                  </Badge>                                  {(() => {
-                                    if (notification.metadata?.rating && typeof notification.metadata.rating === 'number') {
-                                      return (
-                                        <div className="flex items-center gap-1">
-                                          {[...Array(Math.floor(notification.metadata.rating))].map((_, i) => (
-                                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                          ))}
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                  {(() => {
-                                    if (notification.metadata?.amount) {
-                                      return (
-                                        <Badge variant="secondary" className="text-green-600">
-                                          ${typeof notification.metadata.amount === 'number' 
-                                              ? notification.metadata.amount.toLocaleString() 
-                                              : String(notification.metadata.amount)}
-                                        </Badge>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {notification.type === "MESSAGE_RECEIVED" && "Mensaje"}
+                                  {notification.type === "BOOKING_CONFIRMED" && "Reserva confirmada"}
+                                  {notification.type === "BOOKING_CANCELLED" && "Reserva cancelada"}
+                                  {notification.type === "BOOKING_REMINDER" && "Recordatorio"}
+                                  {notification.type === "REVIEW_RECEIVED" && "Reseña"}
+                                  {notification.type === "SERVICE_COMPLETED" && "Servicio completado"}
+                                  {notification.type === "SYSTEM_NOTIFICATION" && "Sistema"}
+                                  {notification.type === "PROFILE_VERIFIED" && "Verificación"}
+                                  {notification.type === "ACCOUNT_UPDATE" && "Cuenta"}
+                                  {notification.type === "ALERT" && "Alerta"}
+                                </Badge>
 
-                                <div className="flex items-center gap-1">
-                                  {notification.isRead ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => deleteNotification(notification.id)}
-                                      title="Eliminar notificación"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  ) : (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => markAsRead(notification.id)}
-                                        title="Marcar como leída"
-                                      >
-                                        <Check className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => deleteNotification(notification.id)}
-                                        title="Eliminar notificación"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
+                                {(() => {
+                                  if (notification.metadata?.rating && typeof notification.metadata.rating === 'number') {
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        {[...Array(Math.floor(notification.metadata.rating))].map((_, i) => (
+                                          <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                        ))}
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
+                                {(() => {
+                                  if (notification.metadata?.amount) {
+                                    return (
+                                      <Badge variant="secondary" className="text-green-600">
+                                        ${typeof notification.metadata.amount === 'number'
+                                          ? notification.metadata.amount.toLocaleString()
+                                          : String(notification.metadata.amount)}
+                                      </Badge>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                             </div>
                           </div>

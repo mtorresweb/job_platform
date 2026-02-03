@@ -5,8 +5,10 @@ import {
   reviewsApi, 
   CreateReviewData, 
   UpdateReviewData,
-  ReviewsParams 
+  ReviewsParams,
+  CreateReviewResponse,
 } from '@/shared/utils/reviews-api';
+import { BOOKINGS_QUERY_KEYS } from '@/shared/hooks/useBookings';
 
 // Query Keys
 export const REVIEWS_QUERY_KEYS = {
@@ -70,24 +72,39 @@ export function useCreateReview() {
 
   return useMutation({
     mutationFn: (data: CreateReviewData) => reviewsApi.createReview(data),
-    onSuccess: (newReview) => {
+    onSuccess: (payload: CreateReviewResponse) => {
       toast.success('Reseña creada exitosamente');
+      console.log('[createReview] success payload', payload);
       
+      const newReview = payload?.review;
+
+      if (!newReview) {
+        toast.error('No se pudo obtener la reseña creada');
+        return;
+      }
+
       // Invalidate reviews lists
       queryClient.invalidateQueries({ 
         queryKey: REVIEWS_QUERY_KEYS.lists() 
       });
-      
-      // Invalidate professional reviews
-      queryClient.invalidateQueries({ 
-        queryKey: REVIEWS_QUERY_KEYS.professional(newReview.professionalId, {}) 
+
+      // Invalidate bookings to reflect review status
+      queryClient.invalidateQueries({
+        queryKey: BOOKINGS_QUERY_KEYS.lists()
       });
+      
+      // Invalidate professional reviews if present
+      if (newReview?.professionalId) {
+        queryClient.invalidateQueries({ 
+          queryKey: REVIEWS_QUERY_KEYS.professional(newReview.professionalId, {}) 
+        });
+      }
       
       // Invalidate service reviews
       queryClient.invalidateQueries({ 
         queryKey: REVIEWS_QUERY_KEYS.service(newReview.booking.service.id, {}) 
       });
-      
+
       // Invalidate testimonials
       queryClient.invalidateQueries({ 
         queryKey: REVIEWS_QUERY_KEYS.testimonials() 
@@ -97,8 +114,27 @@ export function useCreateReview() {
       queryClient.invalidateQueries({ 
         queryKey: REVIEWS_QUERY_KEYS.platformStats() 
       });
+
+      // Refresh current user to reflect updated review count/rating in profile
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
+      // Optimistically patch currentUser cache with updated rating/reviewCount if provided
+      if (payload.professional) {
+        queryClient.setQueryData(["currentUser"], (current: any) => {
+          if (!current?.professional) return current;
+          return {
+            ...current,
+            professional: {
+              ...current.professional,
+              rating: payload.professional.rating,
+              reviewCount: payload.professional.reviewCount,
+            },
+          };
+        });
+      }
     },
     onError: (error: { message?: string }) => {
+      console.error('[createReview] error', error);
       toast.error(error.message || 'Error al crear la reseña');
     },
   });
@@ -121,6 +157,11 @@ export function useUpdateReview() {
       // Invalidate professional reviews
       queryClient.invalidateQueries({ 
         queryKey: REVIEWS_QUERY_KEYS.professional(updatedReview.professionalId, {}) 
+      });
+
+      // Invalidate bookings so responses appear
+      queryClient.invalidateQueries({
+        queryKey: BOOKINGS_QUERY_KEYS.lists()
       });
     },
     onError: (error: { message?: string }) => {

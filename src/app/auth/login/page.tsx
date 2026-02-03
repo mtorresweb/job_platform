@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { signIn } from "@/infrastructure/auth/auth-client";
+import { signIn } from "next-auth/react";
 import { loginSchema } from "@/shared/utils/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,30 @@ import { toast } from "sonner";
 import type { LoginFormData } from "@/shared/types";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const errorParam = searchParams.get("error");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+
+  const mapErrorMessage = (value: string) => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("inactiva")) {
+      return "Tu cuenta está inactiva. Contacta a un administrador.";
+    }
+    if (normalized.includes("credentials") || normalized.includes("signin")) {
+      return "Correo o contraseña incorrectos.";
+    }
+    return "No pudimos iniciar sesión. Intenta de nuevo.";
+  };
+
+  useEffect(() => {
+    if (errorParam) {
+      setError(mapErrorMessage(errorParam));
+    }
+  }, [errorParam]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -41,23 +61,25 @@ export default function LoginPage() {
       setIsLoading(true);
       setError(null);
 
-      const result = await signIn.email({
+      const result = await signIn("credentials", {
+        redirect: false,
         email: data.email,
         password: data.password,
-        rememberMe: data.rememberMe,
+        callbackUrl,
       });
 
-      if (result.error) {
-        setError(result.error.message || "Error al iniciar sesión");
+      if (result?.error) {
+        setError(mapErrorMessage(result.error));
         return;
       }
 
       toast.success("¡Bienvenido de vuelta!");
-      router.push("/dashboard");
+      const url = result?.url || callbackUrl;
+      router.push(url);
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error
-          ? err.message
+        err instanceof Error && err.message
+          ? mapErrorMessage(err.message)
           : "Error inesperado al iniciar sesión";
       setError(errorMessage);
       console.error("Login error:", err);

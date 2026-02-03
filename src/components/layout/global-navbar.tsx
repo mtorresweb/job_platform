@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { useSession, signOut } from "next-auth/react";
+import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,22 +14,34 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Menu, X, MessageCircle, Bell, Calendar, Settings, User, LogOut, Activity, Briefcase, BarChart, HelpCircle } from "lucide-react";
-import { useUnreadNotificationCount, useNotificationListener } from "@/shared/hooks/useNotifications";
+import { Menu, X, MessageCircle, Bell, User, LogOut, Activity, Calendar, Briefcase, Settings, BarChart, Users } from "lucide-react";
+import { 
+  useUnreadNotificationCount, 
+  useNotificationListener, 
+} from "@/shared/hooks/useNotifications";
 import { useUnreadCount } from "@/shared/hooks/useMessages";
-import { NotificationsDropdown } from "@/shared/components/notifications-dropdown";
-import { MessagesDropdown } from "@/shared/components/messages-dropdown";
 
 export function GlobalNavbar() {
-  const { user, isAuthenticated, isProfessional } = useUserRole();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);  const { data: unreadNotificationCount = 0 } = useUnreadNotificationCount();
+  const [mounted, setMounted] = useState(false);
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  const user = session?.user;
+  const isProfessional = user?.role === "PROFESSIONAL";
+  const { data: currentUser } = useCurrentUser({ enabled: isAuthenticated });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: unreadNotificationCount = 0 } = useUnreadNotificationCount();
   const { data: unreadMessagesData } = useUnreadCount();
+  
   const unreadMessageCount = typeof unreadMessagesData === 'object' && unreadMessagesData !== null && 'total' in unreadMessagesData 
     ? unreadMessagesData.total 
     : 0;
   
   // Initialize notification listener for real-time updates
   useNotificationListener();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -72,125 +85,140 @@ export function GlobalNavbar() {
             >
               Nosotros
             </Link>
-          </nav>          <div className="flex items-center space-x-4">
-            {isAuthenticated ? (
-              <>
-                {/* Navigation Icons for Authenticated Users */}
-                <div className="hidden md:flex items-center space-x-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="relative">                      <MessageCircle className="h-5 w-5" />
-                        {unreadMessageCount > 0 && (
-                          <Badge 
-                            variant="destructive" 
-                            className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                          >
-                            {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                          </Badge>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="p-0" align="end">
-                      <MessagesDropdown />
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+          </nav>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="relative">
+          <div className="flex items-center space-x-4">
+            {mounted && (
+              isAuthenticated ? (
+                <div className="flex items-center space-x-4">
+                  {/* Notificaciones: ir directo a la página */}
+                  <div className="hidden md:block">
+                    <Button asChild variant="ghost" size="icon" className="relative cursor-pointer">
+                      <Link href="/notifications" aria-label="Ver notificaciones">
                         <Bell className="h-5 w-5" />
                         {unreadNotificationCount > 0 && (
                           <Badge 
                             variant="destructive" 
-                            className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                            className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-xs"
                           >
-                            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                            {unreadNotificationCount}
+                          </Badge>
+                        )}
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {/* User Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-10 w-10 rounded-full cursor-pointer">
+                        <Avatar className="h-10 w-10 cursor-pointer">
+                          <AvatarImage
+                            key={currentUser?.avatar || user?.avatar || "fallback-avatar"}
+                            src={currentUser?.avatar || user?.avatar || ""}
+                          />
+                          <AvatarFallback>
+                            {currentUser?.name?.charAt(0) || user?.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        {/* Show combined badge only on mobile */}
+                        {(unreadMessageCount > 0 || unreadNotificationCount > 0) && (
+                          <Badge 
+                            variant="destructive" 
+                            className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-xs md:hidden"
+                          >
+                            {unreadMessageCount + unreadNotificationCount}
                           </Badge>
                         )}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="p-0" align="end">
-                      <NotificationsDropdown />
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <Link href="/bookings">
-                    <Button variant="ghost" size="sm">
-                      <Calendar className="h-5 w-5" />
-                    </Button>
-                  </Link>                  
-                  
-                  {isProfessional && (
-                    <Link href="/jobs">
-                      <Button variant="ghost" size="sm">
-                        <Briefcase className="h-5 w-5" />
-                      </Button>
-                    </Link>
-                  )}
-                </div>                <div className="hidden sm:flex items-center space-x-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="" />
-                          <AvatarFallback>
-                            {user?.name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <div className="flex items-center justify-start gap-2 p-2">
-                        <div className="flex flex-col space-y-1 leading-none">
-                          <p className="font-medium">{user?.name}</p>
-                          <p className="w-[200px] truncate text-sm text-muted-foreground">
-                            {user?.email}
-                          </p>
-                        </div>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          key={currentUser?.avatar || user?.avatar || "fallback-avatar"}
+                          src={currentUser?.avatar || user?.avatar || ""}
+                        />
+                        <AvatarFallback>{currentUser?.name?.charAt(0) || user?.name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col space-y-1 leading-none">
+                        <p className="font-medium">{currentUser?.name || user?.name}</p>
+                        <p className="w-[200px] truncate text-sm text-muted-foreground">
+                          {currentUser?.email || user?.email}
+                        </p>
                       </div>
-                      <DropdownMenuSeparator />                      <DropdownMenuItem asChild>
-                        <Link href="/dashboard" className="cursor-pointer">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>                      <DropdownMenuItem asChild>
-                        <Link href="/activity" className="cursor-pointer">
-                          <Activity className="mr-2 h-4 w-4" />
-                          Actividad
-                        </Link>
-                      </DropdownMenuItem>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/bookings" className="cursor-pointer">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Reservas
+                      </Link>
+                    </DropdownMenuItem>
+                    {/* Notifications in dropdown only for mobile */}
+                    <div className="md:hidden">
                       <DropdownMenuItem asChild>
-                        <Link href="/analytics" className="cursor-pointer">
-                          <BarChart className="mr-2 h-4 w-4" />
-                          Analytics
-                        </Link>
-                      </DropdownMenuItem>                      <DropdownMenuItem asChild>
-                        <Link href="/settings" className="cursor-pointer">
-                          <User className="mr-2 h-4 w-4" />
-                          Configuración
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/support" className="cursor-pointer">
-                          <HelpCircle className="mr-2 h-4 w-4" />
-                          Soporte
+                        <Link href="/notifications" className="cursor-pointer flex justify-between items-center">
+                          <span className="flex items-center">
+                            <Bell className="mr-2 h-4 w-4" />
+                            Notificaciones
+                          </span>
+                          {unreadNotificationCount > 0 && (
+                            <Badge variant="destructive" className="ml-2">
+                              {unreadNotificationCount}
+                            </Badge>
+                          )}
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="cursor-pointer">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Cerrar Sesión
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <span className="text-sm font-medium">
-                    Hola, {user?.name}
-                  </span>
-                </div>
-                <Button asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-              </>
+                    </div>
+                    {currentUser?.role === 'ADMIN' && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/activity" className="cursor-pointer">
+                            <Activity className="mr-2 h-4 w-4" />
+                            Actividad
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/users" className="cursor-pointer">
+                            <Users className="mr-2 h-4 w-4" />
+                            Administrar usuarios
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link href="/messages" className="cursor-pointer flex justify-between items-center">
+                        <span className="flex items-center">
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          Mensajes
+                        </span>
+                        {unreadMessageCount > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {unreadMessageCount}
+                          </Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        signOut();
+                      }}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Salir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <>
                 <Button
@@ -204,7 +232,7 @@ export function GlobalNavbar() {
                   <Link href="/auth/register">Comenzar</Link>
                 </Button>
               </>
-            )}
+            ))}
 
             <Button
               variant="ghost"
@@ -219,7 +247,9 @@ export function GlobalNavbar() {
               )}
             </Button>
           </div>
-        </div>        {/* Mobile Menu */}
+        </div>
+        
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4 border-t pt-4">
             <nav className="flex flex-col space-y-4">

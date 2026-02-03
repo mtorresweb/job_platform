@@ -113,31 +113,44 @@ export const changePasswordSchema = z
 
 export const updateProfileSchema = z.object({
   name: nameSchema,
-  email: emailSchema,
-  avatar: z.string().url("URL de avatar inválida").optional(),
+  avatar: z
+    .string()
+    .trim()
+    .url("URL de avatar inválida")
+    .or(z.literal(""))
+    .optional(),
   phone: phoneSchema,
-});
-
-export const professionalProfileSchema = z.object({
-  bio: z.string().max(500, "La biografía es demasiado larga").optional(),
-  experience: z
-    .number()
-    .min(0, "La experiencia no puede ser negativa")
-    .max(50, "Experiencia máxima: 50 años"),
-  specialties: z
-    .array(z.string())
-    .min(1, "Debe seleccionar al menos una especialidad")
-    .max(10, "Máximo 10 especialidades"),
   address: z.string().max(200, "Dirección demasiado larga").optional(),
   city: z.string().max(50, "Ciudad demasiado larga").optional(),
   state: z.string().max(50, "Estado demasiado largo").optional(),
-  country: z.string().default("Colombia"),
   zipCode: z.string().max(10, "Código postal inválido").optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  country: z.string().max(56, "Nombre de país demasiado largo").optional(),
+});
+
+export const professionalProfileSchema = updateProfileSchema.extend({
+  bio: z
+    .string()
+    .min(10, "La biografía debe tener al menos 10 caracteres")
+    .optional(),
+  experience: z
+    .coerce.number()
+    .min(0, "La experiencia no puede ser negativa")
+    .max(50, "Experiencia máxima: 50 años")
+    .optional()
+    .default(0),
+  specialties: z
+    .array(z.string())
+    .max(10, "Máximo 10 especialidades")
+    .optional()
+    .default([]),
 });
 
 // ==========================================
+
+export const resetPasswordWithTokenSchema = z.object({
+  token: z.string().min(10, "Token inválido"),
+  password: passwordSchema,
+});
 // ESQUEMAS DE SERVICIOS
 // ==========================================
 
@@ -171,6 +184,9 @@ export const serviceSchema = z.object({
     .min(20, "La descripción debe tener al menos 20 caracteres")
     .max(1000, "La descripción es demasiado larga"),
   categoryId: z.string().cuid("ID de categoría inválido"),
+  price: z
+    .number({ invalid_type_error: "El precio es requerido" })
+    .min(0, "El precio no puede ser negativo"),
   duration: z
     .number()
     .min(
@@ -237,19 +253,34 @@ export const bulkAvailabilitySchema = z.array(availabilitySchema);
 
 export const bookingSchema = z.object({
   serviceId: z.string().cuid("ID de servicio inválido"),
-  scheduledAt: z.date().refine((date) => date > new Date(), {
+  // Coerce para aceptar string ISO desde el cliente
+  scheduledAt: z.coerce.date().refine((date) => date > new Date(), {
     message: "La fecha debe ser futura",
   }),
   notes: z.string().max(500, "Las notas son demasiado largas").optional(),
 });
 
-export const updateBookingStatusSchema = z.object({
-  status: z.nativeEnum(BookingStatus),
-  cancellationReason: z
-    .string()
-    .max(200, "Razón de cancelación demasiado larga")
-    .optional(),
-});
+export const updateBookingStatusSchema = z
+  .object({
+    status: z.nativeEnum(BookingStatus).optional(),
+    cancellationReason: z
+      .string()
+      .max(200, "Razón de cancelación demasiado larga")
+      .optional(),
+    // Permite reagendar
+    scheduledAt: z
+      .coerce.date()
+      .refine((date) => date > new Date(), {
+        message: "La nueva fecha debe ser futura",
+      })
+      .optional(),
+    // Mensaje opcional para acompañar la acción
+    message: z.string().max(500, "El mensaje es demasiado largo").optional(),
+  })
+  .refine((data) => data.status || data.scheduledAt, {
+    message: "Debes enviar un estado o una nueva fecha",
+    path: ["status"],
+  });
 
 // ==========================================
 // ESQUEMAS DE RESEÑAS

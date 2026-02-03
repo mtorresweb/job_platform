@@ -1,6 +1,7 @@
 "use client";
 
 import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { useDashboardStats } from "@/shared/hooks/useStats";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar,
   MessageSquare,
@@ -27,6 +29,7 @@ import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isProfessional } = useUserRole();
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
 
   if (!isAuthenticated) {
     redirect("/auth/login");
@@ -200,7 +203,13 @@ export default function DashboardPage() {
                   <Star className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">15</div>
+                  <div className="text-2xl font-bold">
+                    {statsLoading ? (
+                      <Skeleton className="h-8 w-16" />
+                    ) : stats?.completedBookings !== undefined ? (
+                      stats.completedBookings
+                    ) : "0"}
+                  </div>
                   <p className="text-xs text-muted-foreground">En total</p>
                 </CardContent>
               </Card>

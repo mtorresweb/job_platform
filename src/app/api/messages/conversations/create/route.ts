@@ -2,12 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { auth } from '@/infrastructure/auth/auth';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/infrastructure/auth/config';
+
+async function resolveSession(request: NextRequest) {
+  const nextSession = await getServerSession(authOptions);
+  if (nextSession?.user) {
+    return { user: nextSession.user } as { user: { id: string } };
+  }
+
+  let session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session?.user) {
+    const authHeader = request.headers.get('authorization');
+    const bearer = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null;
+
+    if (bearer) {
+      const headers = new Headers();
+      headers.set('Authorization', `Bearer ${bearer}`);
+      session = await auth.api.getSession({ headers });
+    }
+  }
+
+  return session;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await resolveSession(request);
 
     if (!session?.user) {
       return NextResponse.json(
@@ -26,71 +50,91 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if professional exists
-    const professional = await prisma.user.findUnique({
-      where: { id: professionalId, role: 'PROFESSIONAL' },
-    });
+    // Resolve current user and target user so we can place each side correctly
+    const [currentUser, targetUser] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, role: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: professionalId },
+        select: { id: true, role: true },
+      }),
+    ]);
 
-    if (!professional) {
+    if (!currentUser) {
       return NextResponse.json(
-        { success: false, message: 'Profesional no encontrado' },
+        { success: false, message: 'Usuario no encontrado' },
         { status: 404 }
       );
     }
 
-    // Check if conversation already exists
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        clientId: session.user.id,
-        professionalId: professionalId,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        professional: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    if (!conversation) {
-      // Create new conversation
-      conversation = await prisma.conversation.create({
-        data: {
-          clientId: session.user.id,
-          professionalId: professionalId,
-        },
-        include: {
-          client: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatar: true,
-            },
-          },
-          professional: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatar: true,
-            },
-          },
-        },
-      });
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, message: 'Usuario destino no encontrado' },
+        { status: 404 }
+      );
     }
+
+    const isCurrentProfessional = currentUser.role === 'PROFESSIONAL';
+    const isTargetProfessional = targetUser.role === 'PROFESSIONAL';
+
+    if (!isCurrentProfessional && !isTargetProfessional) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'La conversación requiere un profesional como participante',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Determine which side is client/professional
+    const clientId = isCurrentProfessional ? targetUser.id : currentUser.id;
+    const targetProfessionalId = isCurrentProfessional ? currentUser.id : targetUser.id;
+
+    if (clientId === targetProfessionalId) {
+      return NextResponse.json(
+        { success: false, message: 'No puedes iniciar una conversación contigo mismo' },
+        { status: 400 }
+      );
+    }
+
+    const includeRelations = {
+      client: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+        },
+      },
+      professional: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+        },
+      },
+    };
+
+    const conversation = await prisma.conversation.upsert({
+      where: {
+        clientId_professionalId: {
+          clientId,
+          professionalId: targetProfessionalId,
+        },
+      },
+      update: {
+        isActive: true,
+      },
+      create: {
+        clientId,
+        professionalId: targetProfessionalId,
+      },
+      include: includeRelations,
+    });
 
     return NextResponse.json({
       success: true,

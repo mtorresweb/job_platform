@@ -67,6 +67,7 @@ export interface SendMessageData {
   fileName?: string;
   fileSize?: number;
   fileMimeType?: string;
+  senderId?: string; // client-side only, used for optimistic rendering
 }
 
 export interface ConversationParams extends PaginationParams {

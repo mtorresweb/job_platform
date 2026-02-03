@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
-import { auth } from '@/infrastructure/auth/auth';
 import { bookingSchema } from '@/shared/utils/validations';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
-import { Prisma, BookingStatus } from '@prisma/client';
+import { Prisma, BookingStatus, NotificationType } from '@prisma/client';
+import { getServerSession } from "next-auth";
+import { authOptions } from '@/infrastructure/auth/config';
+import { auth } from '@/infrastructure/auth/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await getServerSession(authOptions);
+    const betterAuthSession = !session?.user
+      ? await auth.api.getSession({ headers: request.headers })
+      : null;
+    const userId = session?.user?.id ?? betterAuthSession?.user?.id;
 
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -23,23 +27,34 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const role = searchParams.get('role'); // 'client' or 'professional'
+    const scope = searchParams.get('scope'); // 'all' for admin
 
-    const skip = (page - 1) * limit;    // Build where clause based on user role
+    const skip = (page - 1) * limit;
+    // Build where clause based on user role
     const where: Prisma.BookingWhereInput = {};
-    
-    if (role === 'professional') {
-      // User is viewing bookings as a professional
-      where.professionalId = session.user.id;
+
+    if (scope === 'all') {
+      const userRole = session?.user?.role ?? betterAuthSession?.user?.role;
+      if (userRole !== 'ADMIN') {
+        return NextResponse.json({ success: false, message: 'Solo administradores' }, { status: 403 });
+      }
+      // no user filter
     } else {
-      // User is viewing bookings as a client
-      where.clientId = session.user.id;
-    }    if (status) {
+      if (role === 'professional') {
+        where.professionalId = userId;
+      } else {
+        where.clientId = userId;
+      }
+    }
+
+    if (status) {
       where.status = status as BookingStatus;
     }
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
-        where,        include: {
+        where,
+        include: {
           client: {
             select: {
               id: true,
@@ -61,7 +76,14 @@ export async function GET(request: NextRequest) {
               id: true,
               title: true,
               duration: true,
+              price: true,
               images: true,
+              category: {
+                select: {
+                  name: true,
+                  icon: true,
+                },
+              },
             },
           },
           review: true,
@@ -75,16 +97,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        bookings,
+      bookings,
+      total,
+      hasMore: skip + limit < total,
+      pagination: {
+        page,
+        limit,
         total,
-        hasMore: skip + limit < total,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -99,11 +119,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await getServerSession(authOptions);
+    const betterAuthSession = !session?.user
+      ? await auth.api.getSession({ headers: request.headers })
+      : null;
+    const userId = session?.user?.id ?? betterAuthSession?.user?.id;
+    const userName = session?.user?.name ?? betterAuthSession?.user?.name ?? 'Usuario';
 
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -129,6 +152,7 @@ export async function POST(request: NextRequest) {
             user: true,
           },
         },
+        category: true,
       },
     });
 
@@ -147,7 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is trying to book their own service
-    if (service.professional.user.id === session.user.id) {
+    if (service.professional.user.id === userId) {
       return NextResponse.json(
         { success: false, message: 'No puedes reservar tu propio servicio' },
         { status: 400 }
@@ -168,9 +192,11 @@ export async function POST(request: NextRequest) {
         { success: false, message: 'El horario seleccionado no está disponible' },
         { status: 400 }
       );
-    }    const booking = await prisma.booking.create({
+    }
+
+    const booking = await prisma.booking.create({
       data: {
-        clientId: session.user.id,
+        clientId: userId,
         professionalId: service.professional.user.id,
         serviceId: service.id,
         scheduledAt: validatedData.data.scheduledAt,
@@ -194,12 +220,20 @@ export async function POST(request: NextRequest) {
             email: true,
             avatar: true,
           },
-        },        service: {
+        },
+        service: {
           select: {
             id: true,
             title: true,
             duration: true,
+            price: true,
             images: true,
+            category: {
+              select: {
+                name: true,
+                icon: true,
+              },
+            },
           },
         },
       },
@@ -216,17 +250,31 @@ export async function POST(request: NextRequest) {
       data: {
         userId: service.professional.user.id,
         title: 'Nueva reserva',
-        message: `${session.user.name} ha solicitado reservar tu servicio "${service.title}"`,
-        type: 'BOOKING_REQUEST',
+        message: `${userName} ha solicitado reservar tu servicio "${service.title}"`,
+        type: NotificationType.BOOKING_REQUEST,
         relatedId: booking.id,
+        metadata: {
+          serviceTitle: service.title,
+          scheduledAt: booking.scheduledAt,
+        },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: booking,
-      message: 'Reserva creada exitosamente',
+    await prisma.notification.create({
+      data: {
+        userId: userId,
+        title: 'Solicitud enviada',
+        message: `Enviamos tu solicitud para "${service.title}". El profesional confirmará pronto.`,
+        type: NotificationType.BOOKING_REQUEST,
+        relatedId: booking.id,
+        metadata: {
+          serviceTitle: service.title,
+          scheduledAt: booking.scheduledAt,
+        },
+      },
     });
+
+    return NextResponse.json(booking);
   } catch (error) {
     console.error('Error creating booking:', error);
     const prismaError = handlePrismaError(error);

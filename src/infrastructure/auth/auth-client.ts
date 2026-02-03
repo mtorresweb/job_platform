@@ -1,56 +1,63 @@
 "use client";
 
-import { createAuthClient } from "better-auth/react";
 import { User, UserRole } from "@/shared/types";
+import { createAuthClient } from "better-auth/client";
 
-export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+// Type definitions
+export interface SignUpInput {
+  email: string;
+  password: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface SignInInput {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+// Create the auth client instance
+const authClientInstance = createAuthClient({
+  baseURL:
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  options: {
+    signUp: {
+      extraFields: ["name", "role"],
+    },
+  },
+  onLogin: async (session: { accessToken: string; user: User }) => {
+    if (typeof window === "undefined") return;
+
+    const hasLocalStorage =
+      typeof window.localStorage === "object" &&
+      typeof window.localStorage.setItem === "function";
+
+    if (session?.accessToken && hasLocalStorage) {
+      window.localStorage.setItem("auth-token", session.accessToken);
+      window.localStorage.setItem("user", JSON.stringify(session.user));
+    }
+  },
+  onLogout: async () => {
+    if (typeof window !== "undefined") {
+      const hasLocalStorage =
+        typeof window.localStorage === "object" &&
+        typeof window.localStorage.removeItem === "function";
+
+      if (hasLocalStorage) {
+        window.localStorage.removeItem("auth-token");
+        window.localStorage.removeItem("user");
+      }
+
+      window.location.href = "/";
+    }
+  },
 });
 
-// Hooks personalizados para auth
-export const { useSession, signIn, signUp, signOut } = authClient;
+// Export auth methods
+export const { useSession, signIn, signUp, signOut } = authClientInstance;
 
-// Type for better-auth user with our additional fields
-interface BetterAuthUser {
-  id: string;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  image?: string | null;
-  role?: string;
-}
-
-// Hook personalizado para obtener el usuario actual
-export function useCurrentUser(): User | null {
-  const { data: session } = useSession();
-
-  if (!session?.user) return null;
-
-  // Map better-auth user to our User type
-  const betterAuthUser = session.user as BetterAuthUser;
-  return {
-    id: betterAuthUser.id,
-    email: betterAuthUser.email,
-    name: betterAuthUser.name,
-    role: (betterAuthUser.role as UserRole) || UserRole.CLIENT,
-    isEmailVerified: betterAuthUser.emailVerified,
-    createdAt: betterAuthUser.createdAt,
-    updatedAt: betterAuthUser.updatedAt,
-    avatar: betterAuthUser.image || undefined,
-  } as User;
-}
-
-// Hook para verificar roles
-export function useUserRole() {
-  const user = useCurrentUser();
-
-  return {
-    user,
-    isClient: user?.role === UserRole.CLIENT,
-    isProfessional: user?.role === UserRole.PROFESSIONAL,
-    isAdmin: user?.role === UserRole.ADMIN,
-    isAuthenticated: !!user,
-  };
-}
+// Re-export the useUserRole hook
+export { useUserRole } from "./useUserRole";

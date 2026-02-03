@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { auth } from '@/infrastructure/auth/auth';
+import { authOptions } from '@/infrastructure/auth/config';
+import { getServerSession } from 'next-auth';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+
+type ResolvedUser = { id: string } | undefined;
+
+async function resolveUser(request: NextRequest): Promise<ResolvedUser> {
+  const session = await getServerSession(authOptions);
+  if (session?.user) return session.user;
+  const betterAuthSession = await auth.api.getSession({ headers: request.headers });
+  return betterAuthSession?.user;
+}
 
 // POST /api/notifications/mark-read - Mark specific notifications as read
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await resolveUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -30,7 +39,7 @@ export async function POST(request: NextRequest) {
     await prisma.notification.updateMany({
       where: {
         id: { in: data.notificationIds },
-        userId: session.user.id,  // Security: ensure user only updates their notifications
+        userId: user.id,  // Security: ensure user only updates their notifications
       },
       data: {
         isRead: true,

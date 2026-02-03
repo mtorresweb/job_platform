@@ -1,16 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/database/prisma';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/infrastructure/auth/config";
 import { auth } from '@/infrastructure/auth/auth';
 import { reviewSchema } from '@/shared/utils/validations';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    let userId: string | null = null;
+    let userName: string | null = null;
 
-    if (!session?.user) {
+    const nextAuthSession = await getServerSession(authOptions);
+    if (nextAuthSession?.user?.id) {
+      userId = nextAuthSession.user.id;
+      userName = nextAuthSession.user.name || null;
+    } else {
+      const betterSession = await auth.api.getSession({ headers: request.headers });
+      if (betterSession?.user?.id) {
+        userId = betterSession.user.id;
+        userName = betterSession.user.name || null;
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -49,7 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (booking.clientId !== session.user.id) {
+    if (booking.clientId !== userId) {
       return NextResponse.json(
         { success: false, message: 'Solo el cliente puede crear una reseña' },
         { status: 403 }
@@ -74,7 +87,7 @@ export async function POST(request: NextRequest) {
     const review = await prisma.review.create({
       data: {
         bookingId,
-        clientId: session.user.id,
+        clientId: userId,
         professionalId: booking.professionalId,
         rating,
         comment,
@@ -92,6 +105,7 @@ export async function POST(request: NextRequest) {
           include: {
             service: {
               select: {
+                id: true,
                 title: true,
               },
             },
@@ -100,19 +114,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Update professional rating
-    const professionalReviews = await prisma.review.findMany({
+    // Recalcular rating y conteo después de crear la reseña
+    const stats = await prisma.review.aggregate({
       where: { professionalId: booking.professionalId },
-      select: { rating: true },
+      _avg: { rating: true },
+      _count: { _all: true },
     });
 
-    const averageRating = professionalReviews.reduce((sum, r) => sum + r.rating, 0) / professionalReviews.length;
-    
-    await prisma.professional.update({
+    const reviewCount = Number((stats._count as { _all?: number })?._all ?? 0);
+    const ratingAvg = Number(stats._avg.rating ?? 0);
+
+    const updatedProfessional = await prisma.professional.update({
       where: { userId: booking.professionalId },
       data: {
-        rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-        reviewCount: professionalReviews.length,
+        rating: Math.round(ratingAvg * 10) / 10, // Round to 1 decimal
+        reviewCount,
+      },
+      select: {
+        id: true,
+        userId: true,
+        rating: true,
+        reviewCount: true,
       },
     });
 
@@ -121,7 +143,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: booking.professionalId,
         title: 'Nueva reseña',
-        message: `${session.user.name} ha dejado una reseña para tu servicio`,
+        message: `${userName || 'Un cliente'} ha dejado una reseña para tu servicio`,
         type: 'NEW_REVIEW',
         relatedId: review.id,
       },
@@ -129,7 +151,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: review,
+      data: {
+        review,
+        professional: updatedProfessional,
+      },
       message: 'Reseña creada exitosamente',
     });
   } catch (error) {
@@ -147,7 +172,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const professionalId = searchParams.get('professionalId');
     const serviceId = searchParams.get('serviceId');
-    const page = parseInt(searchParams.get('page') || '1');    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
 
     const skip = (page - 1) * limit;
 

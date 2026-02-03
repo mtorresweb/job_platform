@@ -2,7 +2,7 @@
 
 import { io, Socket } from "socket.io-client";
 import { useEffect, useState } from "react";
-import { useCurrentUser } from "../auth/auth-client";
+import { useUserRole } from "@/infrastructure/auth/auth-client";
 
 // Socket Event Types
 export interface SocketEvents {
@@ -25,7 +25,11 @@ export interface SocketEvents {
     };
   }) => void;
   message_read: (data: { messageId: string; conversationId: string }) => void;
-  user_typing: (data: { userId: string; conversationId: string; isTyping: boolean }) => void;
+  user_typing: (data: {
+    userId: string;
+    conversationId: string;
+    isTyping: boolean;
+  }) => void;
 
   // Booking events
   booking_created: (data: {
@@ -43,7 +47,11 @@ export interface SocketEvents {
     };
   }) => void;
   booking_confirmed: (data: { id: string; status: string }) => void;
-  booking_cancelled: (data: { id: string; status: string; reason?: string }) => void;
+  booking_cancelled: (data: {
+    id: string;
+    status: string;
+    reason?: string;
+  }) => void;
   booking_completed: (data: { id: string; status: string }) => void;
 
   // Notification events
@@ -64,7 +72,8 @@ export class SocketClient {
   private static instance: SocketClient;
   private socket: Socket | null = null;
   private token: string | null = null;
-  private eventHandlers: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+  private eventHandlers: Map<string, Set<(...args: unknown[]) => void>> =
+    new Map();
 
   private constructor() {}
 
@@ -75,21 +84,27 @@ export class SocketClient {
     return SocketClient.instance;
   }
 
-  public connect(token: string) {
+  public connect(token?: string) {
     if (this.socket && this.socket.connected) {
       return this.socket;
     }
 
-    this.token = token;
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "ws://localhost:3001";
-    
-    this.socket = io(socketUrl, {
-      auth: {
-        token,
-      },
-      autoConnect: true,
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
+    this.token = token || null;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    // Initialize socket connection
+    this.socket = io(baseUrl, {
+      path: "/api/socketio",
+      auth: token ? { token } : undefined,
+      autoConnect: false,
+      transports: ["polling", "websocket"],
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      withCredentials: true,
       forceNew: true,
     });
 
@@ -135,35 +150,40 @@ export class SocketClient {
 
   // Specific emit methods
   public joinConversation(conversationId: string) {
-    this.emit('join_conversation', { conversationId });
+    this.emit("join_conversation", { conversationId });
   }
 
   public leaveConversation(conversationId: string) {
-    this.emit('leave_conversation', { conversationId });
+    this.emit("leave_conversation", { conversationId });
   }
 
-  public sendMessage(conversationId: string, content: string, messageType = 'TEXT') {
-    this.emit('send_message', { conversationId, content, messageType });
+  public sendMessage(
+    conversationId: string,
+    content: string,
+    messageType = "TEXT",
+  ) {
+    this.emit("send_message", { conversationId, content, messageType });
   }
 
   public markMessageAsRead(messageId: string, conversationId: string) {
-    this.emit('mark_message_read', { messageId, conversationId });
+    this.emit("mark_message_read", { messageId, conversationId });
   }
 
   public setTyping(conversationId: string, isTyping: boolean) {
-    this.emit('typing', { conversationId, isTyping });
+    this.emit("typing", { conversationId, isTyping });
   }
 
-  public updateUserStatus(status: 'online' | 'offline' | 'away') {
-    this.emit('update_status', { status });
+  public updateUserStatus(status: "online" | "offline" | "away") {
+    this.emit("update_status", { status });
   }
 
   public markNotificationRead(notificationId: string) {
-    this.emit('mark_notification_read', { notificationId });
+    this.emit("mark_notification_read", { notificationId });
   }
 
   private setupEventHandlers() {
-    if (!this.socket) return;    this.socket.on("connect", () => {
+    if (!this.socket) return;
+    this.socket.on("connect", () => {
       // Connection successful - client is now connected to socket server
     });
 
@@ -185,36 +205,72 @@ export class SocketClient {
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const user = useCurrentUser();
+  const { user } = useUserRole();
 
   useEffect(() => {
     if (!user) {
-      // Desconectar si no hay usuario
+      // Disconnect if no user
       SocketClient.getInstance().disconnect();
       setSocket(null);
       setIsConnected(false);
       return;
     }
 
-    // Conectar con token del usuario (necesitarás implementar obtención del token)
-    const socketInstance = SocketClient.getInstance().connect("user-token"); // Reemplazar con token real
-    setSocket(socketInstance);
+    // Make sure socket server is initialized
+    fetch("/api/socketio").catch(console.error);
 
-    const handleConnect = () => setIsConnected(true);
-    const handleDisconnect = () => setIsConnected(false);
+    // Get the auth token from localStorage (browser only, and only if available)
+    const hasLocalStorage =
+      typeof window !== "undefined" &&
+      typeof localStorage === "object" &&
+      typeof localStorage.getItem === "function";
+
+    const token = hasLocalStorage ? localStorage.getItem("auth-token") : null;
+
+    // Connect with token if available; otherwise rely on cookies handled in server middleware
+    const socketClient = SocketClient.getInstance();
+    const socketInstance = socketClient.connect(token || undefined);
+
+    if (!socketInstance) {
+      console.error("Failed to initialize socket connection");
+      return;
+    }
+
+    setSocket(socketInstance);
+    socketInstance.connect();
+
+    const handleConnect = () => {
+      console.log("Socket connected successfully");
+      setIsConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      console.log("Socket disconnected");
+      setIsConnected(false);
+    };
+
+    const handleError = (error: Error) => {
+      console.error("Socket connection error:", error);
+      setIsConnected(false);
+    };
 
     socketInstance.on("connect", handleConnect);
     socketInstance.on("disconnect", handleDisconnect);
+    socketInstance.on("connect_error", handleError);
 
     return () => {
       socketInstance.off("connect", handleConnect);
       socketInstance.off("disconnect", handleDisconnect);
+      socketInstance.off("connect_error", handleError);
+      socketClient.disconnect();
     };
   }, [user]);
+
+  const socketClient = SocketClient.getInstance();
 
   return {
     socket,
     isConnected,
-    socketClient: SocketClient.getInstance(),
+    socketClient,
   };
 }

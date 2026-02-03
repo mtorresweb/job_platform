@@ -368,23 +368,9 @@ export default function ServiceDetailPage() {
                         <Separator className="mt-4" />
                       </div>
                       <div>
-                        <h4 className="font-medium mb-2">¿Qué está incluido en el precio?</h4>
-                        <p className="text-sm text-foreground/70">
-                          Este servicio incluye {Math.floor(service.duration / 60)} horas y {service.duration % 60} minutos de trabajo profesional. Los materiales necesarios se coordinarán directamente con el cliente.
-                        </p>
-                        <Separator className="mt-4" />
-                      </div>
-                      <div>
                         <h4 className="font-medium mb-2">¿Cómo puedo contactar al profesional?</h4>
                         <p className="text-sm text-foreground/70">
                           Puedes usar el botón &quot;Contactar&quot; para enviar un mensaje directo al profesional antes de realizar la reserva.
-                        </p>
-                        <Separator className="mt-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium mb-2">¿Qué pasa si no estoy satisfecho?</h4>
-                        <p className="text-sm text-foreground/70">
-                          Ofrecemos garantía de satisfacción. Si no estás conforme con el servicio, puedes contactarnos para resolver cualquier inconveniente.
                         </p>
                       </div>
                     </div>
@@ -396,7 +382,7 @@ export default function ServiceDetailPage() {
 
           {/* Sidebar */}          <div className="space-y-6">
             {/* Service Actions Card */}
-            <Card className="sticky top-6">
+            <Card className="lg:sticky lg:top-6">
               <CardHeader>
                 <CardTitle className="text-xl text-primary">
                   Contratar Servicio

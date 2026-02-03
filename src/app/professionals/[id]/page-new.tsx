@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,8 @@ import {
 
 export default function ProfessionalProfilePage() {
   const params = useParams();
-  const professionalId = params.id as string;
+  const router = useRouter();
+  const professionalId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
   const [activeTab, setActiveTab] = useState("services");
 
   // Fetch professional data
@@ -43,8 +44,7 @@ export default function ProfessionalProfilePage() {
   } = useProfessional(professionalId);
   const handleContactProfessional = () => {
     if (!professional) return;
-    // Redirect to messaging page with professional
-    window.location.href = `/messages/new?professionalId=${professional.id}&name=${encodeURIComponent(professional.user.name)}`;
+    router.push(`/messages?conversationWith=${professional.user.id}`);
   };
 
   const handleHireProfessional = () => {

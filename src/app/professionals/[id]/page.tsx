@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useProfessional } from "@/shared/hooks/useProfessionals";
+import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 import {
   ArrowLeft,
   Star,
@@ -30,9 +31,13 @@ import {
 
 export default function ProfessionalProfilePage() {
   const params = useParams();
-  const professionalId = params.id as string;
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("services");
-
+  const { data: currentUser } = useCurrentUser();
+  
+  // Ensure params.id is a string
+  const professionalId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
+  
   // Fetch professional data
   const { 
     data: professional, 
@@ -40,10 +45,27 @@ export default function ProfessionalProfilePage() {
     error,
     refetch 
   } = useProfessional(professionalId);
+
+  const isOwner = Boolean(currentUser?.id && professional?.user?.id && currentUser.id === professional.user.id);
+
+  // Early return for missing ID
+  if (!professionalId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              No se encontró el ID del profesional
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
   const handleContactProfessional = () => {
     if (!professional) return;
-    // Redirect to messaging page with professional
-    window.location.href = `/messages/new?professionalId=${professional.id}&name=${encodeURIComponent(professional.user.name)}`;
+    router.push(`/messages?conversationWith=${professional.user.id}`);
   };
 
   const handleBookService = (serviceId: string) => {
@@ -52,11 +74,17 @@ export default function ProfessionalProfilePage() {
     window.location.href = `/book?professionalId=${professional.id}&serviceId=${serviceId}`;
   };
 
+  const handleEditService = (serviceId: string) => {
+    if (!serviceId) return;
+    // Lleva al flujo de edición en el perfil privado
+    window.location.href = `/profile?editService=${serviceId}`;
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header Skeleton */}
-        <div className="bg-white border-b">
+        <div className="bg-card border-b">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <div className="flex items-center gap-4">
               <Skeleton className="h-10 w-10" />
@@ -122,15 +150,17 @@ export default function ProfessionalProfilePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="bg-white border-b">
+        <div className="bg-card border-b">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <div className="flex items-center gap-4">
-              <Link href="/professionals" className="text-blue-600 hover:text-blue-700">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <h1 className="text-xl font-semibold">Professional Profile</h1>
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/professionals">
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+              </Button>
+              <h1 className="text-xl font-semibold">Perfil Profesional</h1>
             </div>
           </div>
         </div>
@@ -140,13 +170,13 @@ export default function ProfessionalProfilePage() {
           <Alert className="max-w-md mx-auto">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Error loading professional profile. 
-              <Button 
-                variant="link" 
+              Error al cargar el perfil del profesional.
+              <Button
+                variant="link"
                 className="p-0 h-auto ml-1"
                 onClick={() => refetch()}
               >
-                Try again
+                Intentar de nuevo
               </Button>
             </AlertDescription>
           </Alert>
@@ -157,15 +187,17 @@ export default function ProfessionalProfilePage() {
 
   if (!professional) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="bg-white border-b">
+        <div className="bg-card border-b">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <div className="flex items-center gap-4">
-              <Link href="/professionals" className="text-blue-600 hover:text-blue-700">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <h1 className="text-xl font-semibold">Professional Profile</h1>
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/professionals">
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+              </Button>
+              <h1 className="text-xl font-semibold">Perfil Profesional</h1>
             </div>
           </div>
         </div>
@@ -175,7 +207,7 @@ export default function ProfessionalProfilePage() {
           <Alert className="max-w-md mx-auto">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Professional not found.
+              Profesional no encontrado.
             </AlertDescription>
           </Alert>
         </div>
@@ -184,15 +216,17 @@ export default function ProfessionalProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b">
         <div className="max-w-6xl mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
-            <Link href="/professionals" className="text-blue-600 hover:text-blue-700">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-xl font-semibold">Professional Profile</h1>
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/professionals">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-xl font-semibold">Perfil Profesional</h1>
           </div>
         </div>
       </div>
@@ -216,16 +250,16 @@ export default function ProfessionalProfilePage() {
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
+                        <h1 className="text-2xl font-bold">
                           {professional.user.name}
-                        </h1>                        <p className="text-lg text-gray-600 mt-1">
-                          {professional.bio || "Professional"}
+                        </h1>                        <p className="text-lg text-foreground/70 mt-1">
+                          {professional.bio || "Profesional"}
                         </p>
                       </div>
                       {professional.isVerified && (
                         <Badge variant="secondary" className="bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Verified
+                          Verificado
                         </Badge>
                       )}
                     </div>
@@ -244,14 +278,14 @@ export default function ProfessionalProfilePage() {
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 text-yellow-500 fill-current" />
                         <span className="font-medium">{professional.rating.toFixed(1)}</span>
-                        <span className="text-gray-500">({professional.reviewCount} reviews)</span>
+                        <span className="text-foreground/60">({professional.reviewCount} reseñas)</span>
                       </div>                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{professional.city}, {professional.state}</span>
+                        <MapPin className="h-4 w-4 text-foreground/60" />
+                        <span className="text-foreground/70">{professional.city}, {professional.state}</span>
                       </div>                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">
-                          Usually responds quickly
+                        <Clock className="h-4 w-4 text-foreground/60" />
+                        <span className="text-foreground/70">
+                          Suele responder rápido
                         </span>
                       </div>
                     </div>
@@ -263,17 +297,17 @@ export default function ProfessionalProfilePage() {
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="services">Services</TabsTrigger>
-                <TabsTrigger value="about">About</TabsTrigger>
-                <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                <TabsTrigger value="services">Servicios</TabsTrigger>
+                <TabsTrigger value="about">Acerca de</TabsTrigger>
+                <TabsTrigger value="portfolio">Portafolio</TabsTrigger>
+                <TabsTrigger value="reviews">Reseñas</TabsTrigger>
               </TabsList>
 
               {/* Services Tab */}
               <TabsContent value="services" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Services Offered</CardTitle>
+                    <CardTitle>Servicios ofrecidos</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {professional.services.map((service) => (
@@ -289,19 +323,29 @@ export default function ProfessionalProfilePage() {
                               </Badge>
                             </div>
                           </div>
-                          <Button 
-                            onClick={() => handleBookService(service.id)}
-                            size="sm"
-                          >
-                            Book Now
-                          </Button>
+                          {isOwner ? (
+                            <Button 
+                              onClick={() => handleEditService(service.id)}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Editar
+                            </Button>
+                          ) : (
+                            <Button 
+                              onClick={() => handleBookService(service.id)}
+                              size="sm"
+                            >
+                              Reservar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
                     
                     {professional.services.length === 0 && (
                       <div className="text-center py-8 text-gray-500">
-                        No services listed yet
+                        Aún no hay servicios publicados
                       </div>
                     )}
                   </CardContent>
@@ -312,42 +356,42 @@ export default function ProfessionalProfilePage() {
               <TabsContent value="about" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>About</CardTitle>
+                    <CardTitle>Acerca de</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div>
-                      <h3 className="font-semibold mb-2">Description</h3>                      <p className="text-gray-600 leading-relaxed">
-                        {professional.bio || "No description provided."}
+                      <h3 className="font-semibold mb-2">Descripción</h3>                      <p className="text-foreground/70 leading-relaxed">
+                        {professional.bio || "Sin descripción disponible."}
                       </p>
                     </div>
                     
                     <Separator />
                     
                     <div>
-                      <h3 className="font-semibold mb-3">Experience & Qualifications</h3>
+                      <h3 className="font-semibold mb-3">Experiencia y certificaciones</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-2">
                           <Briefcase className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            {professional.experience} years experience
+                          <span className="text-sm text-foreground/70">
+                            {professional.experience} años de experiencia
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <GraduationCap className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            Professional Certified
+                          <span className="text-sm text-foreground/70">
+                            Profesional certificado
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            {professional.reviewCount} clients served
+                          <span className="text-sm text-foreground/70">
+                            {professional.reviewCount} clientes atendidos
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            Background verified
+                          <span className="text-sm text-foreground/70">
+                            Antecedentes verificados
                           </span>
                         </div>
                       </div>
@@ -360,11 +404,11 @@ export default function ProfessionalProfilePage() {
               <TabsContent value="portfolio" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Portfolio</CardTitle>
+                    <CardTitle>Portafolio</CardTitle>
                   </CardHeader>
                   <CardContent>                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <div className="col-span-full text-center py-8 text-gray-500">
-                        No portfolio items yet
+                        Aún no hay elementos en el portafolio
                       </div>
                     </div>
                   </CardContent>
@@ -375,7 +419,7 @@ export default function ProfessionalProfilePage() {
               <TabsContent value="reviews" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Client Reviews</CardTitle>
+                    <CardTitle>Reseñas de clientes</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">                    {professional.reviews?.map((review, index) => (
                       <div key={index} className="p-4 border rounded-lg">
@@ -406,11 +450,11 @@ export default function ProfessionalProfilePage() {
                             {new Date(review.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-gray-600 mt-2">{review.comment}</p>
+                        <p className="text-foreground/70 mt-2">{review.comment}</p>
                       </div>
                     )) || (
                       <div className="text-center py-8 text-gray-500">
-                        No reviews yet
+                        Aún no hay reseñas
                       </div>
                     )}
                   </CardContent>
@@ -424,7 +468,7 @@ export default function ProfessionalProfilePage() {
             {/* Contact Card */}
             <Card>
               <CardHeader>
-                <CardTitle>Contact</CardTitle>
+                <CardTitle>Contacto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button 
@@ -432,18 +476,18 @@ export default function ProfessionalProfilePage() {
                   className="w-full"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Send Message
+                  Enviar mensaje
                 </Button>
                 <Button variant="outline" className="w-full">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Schedule Call
+                  Agendar llamada
                 </Button>
                 
                 <Separator />
                   <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">{professional.user.email}</span>
+                    <span className="text-foreground/70">{professional.user.email}</span>
                   </div>
                 </div>
               </CardContent>
@@ -452,22 +496,22 @@ export default function ProfessionalProfilePage() {
             {/* Quick Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Stats</CardTitle>
+                <CardTitle>Estadísticas rápidas</CardTitle>
               </CardHeader>              <CardContent className="space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Experience</span>
-                  <span className="font-medium">{professional.experience} years</span>
+                  <span className="text-foreground/70">Experiencia</span>
+                  <span className="font-medium">{professional.experience} años</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Rating</span>
+                  <span className="text-foreground/70">Calificación</span>
                   <span className="font-medium">{professional.rating.toFixed(1)} ⭐</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Reviews</span>
+                  <span className="text-foreground/70">Reseñas</span>
                   <span className="font-medium">{professional.reviewCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Member since</span>
+                  <span className="text-foreground/70">Miembro desde</span>
                   <span className="font-medium">
                     {new Date(professional.user.createdAt).getFullYear()}
                   </span>
@@ -483,19 +527,19 @@ export default function ProfessionalProfilePage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Identity verified</span>
+                  <span className="text-sm">Identidad verificada</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Email verified</span>
+                  <span className="text-sm">Correo verificado</span>
                 </div>                <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Phone verified</span>
+                  <span className="text-sm">Teléfono verificado</span>
                 </div>
                 {professional.isVerified && (
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">Professional certified</span>
+                    <span className="text-sm">Profesional certificado</span>
                   </div>
                 )}
               </CardContent>

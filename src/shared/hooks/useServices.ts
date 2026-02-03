@@ -79,7 +79,16 @@ export function useService(id: string) {
 export function useProfessionalServices(professionalId: string, params = {}) {
   return useQuery({
     queryKey: SERVICES_QUERY_KEYS.professional(professionalId),
-    queryFn: () => servicesApi.getServicesByProfessional(professionalId, params),
+    queryFn: async () => {
+      if (!professionalId) return { services: [], total: 0, hasMore: false };
+      const response = await servicesApi.getServicesByProfessional(professionalId, params);
+      // Normaliza respuesta por si viene envuelta en { data }
+      const payload = (response as any)?.data ?? response;
+      const services = payload?.services ?? [];
+      const total = payload?.total ?? services.length;
+      const hasMore = payload?.hasMore ?? false;
+      return { services, total, hasMore };
+    },
     enabled: Boolean(professionalId),
     staleTime: 1 * 60 * 1000,
   });

@@ -17,18 +17,45 @@ datasource db {
 // MODELOS DE USUARIO Y AUTENTICACIÓN
 // ==========================================
 
+model Account {
+  id                String   @id @default(cuid())
+  userId           String
+  type             String
+  provider         String
+  providerAccountId String
+  refresh_token    String?  @db.Text
+  access_token     String?  @db.Text
+  expires_at       Int?
+  token_type       String?
+  scope            String?
+  id_token         String?  @db.Text
+  session_state    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
+  id               String    @id @default(cuid())
+  email            String    @unique
   name             String
-  password         String   // Hash con bcrypt
-  role             UserRole @default(CLIENT)
-  isEmailVerified  Boolean  @default(false)
-  isActive         Boolean  @default(true)  // Usuario activo/desactivado
+  password         String    // Hash con bcrypt
+  role             UserRole  @default(CLIENT)
+  isEmailVerified  Boolean   @default(false)
+  isActive         Boolean   @default(true)  // Usuario activo/desactivado
   avatar           String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  accounts         Account[]
   lastLoginAt      DateTime?
+  profileCompleted Boolean   @default(false)
   
   // Datos de protección de privacidad (Ley 1581/2012)
   acceptedTermsAt  DateTime?
@@ -55,6 +82,9 @@ model User {
   
   // Envíos de contacto
   contactSubmissions ContactSubmission[]
+
+  // Tokens de recuperación de contraseña
+  passwordResetTokens PasswordResetToken[]
   
   @@map("users")
 }
@@ -153,6 +183,19 @@ model Service {
   bookings       Booking[]
   
   @@map("services")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // ==========================================

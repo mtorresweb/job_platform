@@ -41,6 +41,19 @@ export default function HomePage() {
     isLoading: statsLoading, 
     error: statsError 
   } = usePlatformStats();
+
+  const formatMetric = (value?: number) => {
+    if (typeof value !== "number" || Number.isNaN(value)) return "0";
+    if (value >= 1_000_000) {
+      const scaled = value / 1_000_000;
+      return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)}M+`;
+    }
+    if (value >= 1_000) {
+      const scaled = value / 1_000;
+      return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)}K+`;
+    }
+    return value.toLocaleString("es-CO");
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -119,10 +132,8 @@ export default function HomePage() {
                 <div className="text-4xl lg:text-5xl font-bold text-primary">
                   {statsLoading ? (
                     <Skeleton className="h-12 w-24 mx-auto" />
-                  ) : platformStats?.completedBookings ? (
-                    `${Math.floor(platformStats.completedBookings / 1000)}K+`
                   ) : (
-                    <Skeleton className="h-12 w-24 mx-auto" />
+                    formatMetric(platformStats?.completedBookings)
                   )}
                 </div>
                 <div className="text-foreground/60 font-medium">
@@ -133,10 +144,8 @@ export default function HomePage() {
                 <div className="text-4xl lg:text-5xl font-bold text-primary">
                   {statsLoading ? (
                     <Skeleton className="h-12 w-20 mx-auto" />
-                  ) : platformStats?.totalProfessionals ? (
-                    `${Math.floor(platformStats.totalProfessionals / 1000)}K+`
                   ) : (
-                    <Skeleton className="h-12 w-20 mx-auto" />
+                    formatMetric(platformStats?.totalProfessionals)
                   )}
                 </div>
                 <div className="text-foreground/60 font-medium">
@@ -147,7 +156,7 @@ export default function HomePage() {
                 <div className="text-4xl lg:text-5xl font-bold text-primary">
                   {statsLoading ? (
                     <Skeleton className="h-12 w-16 mx-auto" />
-                  ) : platformStats?.satisfactionRate ? (
+                  ) : typeof platformStats?.satisfactionRate === "number" ? (
                     `${platformStats.satisfactionRate}%`
                   ) : (
                     <Skeleton className="h-12 w-16 mx-auto" />

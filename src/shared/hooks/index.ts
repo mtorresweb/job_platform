@@ -69,6 +69,13 @@ export function useLocalStorage<T>(
       return initialValue;
     }
     try {
+      const hasLocalStorage =
+        typeof window !== "undefined" &&
+        typeof window.localStorage === "object" &&
+        typeof window.localStorage.getItem === "function";
+
+      if (!hasLocalStorage) return initialValue;
+
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
@@ -83,7 +90,11 @@ export function useLocalStorage<T>(
         const valueToStore =
           value instanceof Function ? value(storedValue) : value;
         setStoredValue(valueToStore);
-        if (typeof window !== "undefined") {
+        if (
+          typeof window !== "undefined" &&
+          typeof window.localStorage === "object" &&
+          typeof window.localStorage.setItem === "function"
+        ) {
           window.localStorage.setItem(key, JSON.stringify(valueToStore));
         }
       } catch (error) {
@@ -96,7 +107,11 @@ export function useLocalStorage<T>(
   const removeValue = useCallback(() => {
     try {
       setStoredValue(initialValue);
-      if (typeof window !== "undefined") {
+      if (
+        typeof window !== "undefined" &&
+        typeof window.localStorage === "object" &&
+        typeof window.localStorage.removeItem === "function"
+      ) {
         window.localStorage.removeItem(key);
       }
     } catch (error) {

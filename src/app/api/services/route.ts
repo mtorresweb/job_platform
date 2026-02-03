@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/database/prisma';
-import { auth } from '@/infrastructure/auth/auth';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/infrastructure/auth/config";
+import { auth } from "@/infrastructure/auth/auth";
 import { serviceSchema, searchParamsSchema } from '@/shared/utils/validations';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
 
@@ -131,13 +133,27 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function getAuthenticatedUserId(headers: Headers): Promise<string | null> {
+  // Primero intenta con NextAuth
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) return session.user.id;
+
+  // Fallback a better-auth (tokens via headers)
+  try {
+    const betterSession = await auth.api.getSession({ headers });
+    if (betterSession?.user?.id) return betterSession.user.id;
+  } catch (error) {
+    console.error("Error obteniendo sesión better-auth:", error);
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const userId = await getAuthenticatedUserId(request.headers);
 
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -154,17 +170,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is a professional
-    const professional = await prisma.professional.findUnique({
-      where: { userId: session.user.id },
+    // Verify user is a professional, create profile if missing
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { professional: true },
     });
 
-    if (!professional) {
+    if (!user || user.role !== 'PROFESSIONAL') {
       return NextResponse.json(
         { success: false, message: 'Solo los profesionales pueden crear servicios' },
         { status: 403 }
       );
     }
+
+    const professional =
+      user.professional ||
+      (await prisma.professional.create({
+        data: {
+          userId: user.id,
+          specialties: [],
+        },
+      }));
 
     const service = await prisma.service.create({
       data: {

@@ -33,6 +33,19 @@ export default function HomePage() {
     error: statsError 
   } = usePlatformStats();
 
+  const formatMetric = (value?: number) => {
+    if (typeof value !== "number" || Number.isNaN(value)) return "0";
+    if (value >= 1_000_000) {
+      const scaled = value / 1_000_000;
+      return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)}M+`;
+    }
+    if (value >= 1_000) {
+      const scaled = value / 1_000;
+      return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)}K+`;
+    }
+    return value.toLocaleString("es-CO");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -228,10 +241,8 @@ export default function HomePage() {
                 <div className="text-4xl font-bold text-primary mb-2">
                   {statsLoading ? (
                     <Skeleton className="h-10 w-20 mx-auto" />
-                  ) : platformStats?.completedBookings ? (
-                    `${platformStats.completedBookings.toLocaleString()}+`
                   ) : (
-                    <Skeleton className="h-10 w-20 mx-auto" />
+                    formatMetric(platformStats?.completedBookings)
                   )}
                 </div>
                 <div className="text-foreground/60">Servicios Completados</div>
@@ -240,10 +251,8 @@ export default function HomePage() {
                 <div className="text-4xl font-bold text-primary mb-2">
                   {statsLoading ? (
                     <Skeleton className="h-10 w-20 mx-auto" />
-                  ) : platformStats?.totalProfessionals ? (
-                    `${platformStats.totalProfessionals.toLocaleString()}+`
                   ) : (
-                    <Skeleton className="h-10 w-20 mx-auto" />
+                    formatMetric(platformStats?.totalProfessionals)
                   )}
                 </div>
                 <div className="text-foreground/60">Profesionales Activos</div>

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { signUp } from "@/infrastructure/auth/auth-client";
 import { registerSchema } from "@/shared/utils/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,25 +53,40 @@ export default function RegisterPage() {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Validate terms acceptance
+      if (!data.acceptTerms || !data.acceptPrivacy) {
+        setError("Debes aceptar los términos y la política de privacidad");
+        return;
+      }
 
-      const result = await signUp.email({
-        email: data.email,
-        password: data.password,
-        name: data.name,
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name,
+          role: data.role,
+        }),
       });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Error al crear la cuenta");
+      }
 
       if (result.error) {
         setError(result.error.message || "Error al crear la cuenta");
         return;
       }
 
-      // TODO: Store role in separate API call or user profile update
-      // For now, we'll assume role is handled elsewhere or in user profile
-
       toast.success(
         "¡Cuenta creada exitosamente! Revisa tu correo para verificar tu cuenta.",
       );
-      router.push("/auth/verify-email?email=" + encodeURIComponent(data.email));
+      router.push("/auth/login");
+      //router.push("/auth/verify-email?email=" + encodeURIComponent(data.email));
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { 
@@ -12,24 +12,21 @@ import {
   MessageCircle, 
   Calendar, 
   Star, 
-  CreditCard, 
-  UserPlus, 
   Clock,
   Search,
   Filter,
   ChevronRight,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from "lucide-react";
 import { format, subDays, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
 // Import real API hooks
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { useUserBookings, useProfessionalBookings } from "@/shared/hooks/useBookings";
+import { useUserBookings, useProfessionalBookings, useAllBookings } from "@/shared/hooks/useBookings";
+import { useReviews } from "@/shared/hooks/useReviews";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
 
 // Define activity types for unified display
@@ -44,57 +41,120 @@ interface ActivityItem {
   client?: string;
   rating?: number;
   metadata?: Record<string, unknown>;
-}export default function ActivityPage() {
+}
+
+export default function ActivityPage() {
   const [filter, setFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDebug, setShowDebug] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   // Get current user to determine role
-  const { isProfessional } = useUserRole();
+  const { isProfessional, isAdmin } = useUserRole();
   // Fetch data from real APIs
-  const { data: notificationsData, isLoading: isLoadingNotifications, error: notificationsError } = useNotifications({ 
-    limit: 50, 
-    page: 1 
+  const { data: notificationsData, isLoading: isLoadingNotifications, error: notificationsError } = useNotifications({
+    limit: 50,
+    page: 1,
+    scope: isAdmin ? "all" : "user",
   });
   
-  const { data: userBookingsData, isLoading: isLoadingUserBookings, error: userBookingsError } = useUserBookings({ 
-    limit: 20, 
-    page: 1 
+  const { data: userBookingsData, isLoading: isLoadingUserBookings, error: userBookingsError } = useUserBookings({
+    limit: 20,
+    page: 1,
   });
   
-  const { data: professionalBookingsData, isLoading: isLoadingProfessionalBookings, error: professionalBookingsError } = useProfessionalBookings({ 
-    limit: 20, 
-    page: 1 
+  const { data: professionalBookingsData, isLoading: isLoadingProfessionalBookings, error: professionalBookingsError } = useProfessionalBookings({
+    limit: 20,
+    page: 1,
   });
+
+  const { data: allBookingsData, isLoading: isLoadingAllBookings, error: allBookingsError } = useAllBookings({
+    limit: 50,
+    page: 1,
+  });
+
+  const { data: reviewsData, isLoading: isLoadingReviews, error: reviewsError } = useReviews({
+    limit: 50,
+    page: 1,
+  });
+
+  const notificationItems = useMemo(() => {
+    console.log("[activity] raw notificationsData", notificationsData);
+    if (!notificationsData) return [];
+    const raw: any = notificationsData as any;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw.data)) return raw.data;
+    if (Array.isArray(raw.data?.data)) return raw.data.data;
+    if (Array.isArray(raw.data?.notifications)) return raw.data.notifications;
+    if (Array.isArray(raw.notifications)) return raw.notifications;
+    return [];
+  }, [notificationsData]);
+
+  const bookingsList = useMemo(() => {
+    console.log("[activity] raw professionalBookingsData", professionalBookingsData);
+    console.log("[activity] raw userBookingsData", userBookingsData);
+    const unwrap = (raw: any) => {
+      if (!raw) return [];
+      if (Array.isArray(raw.bookings)) return raw.bookings;
+      if (Array.isArray(raw.data?.bookings)) return raw.data.bookings;
+      if (Array.isArray(raw.data?.data?.bookings)) return raw.data.data.bookings;
+      return [];
+    };
+
+    const professionalList = unwrap(professionalBookingsData);
+    const userList = unwrap(userBookingsData);
+    const allList = unwrap(allBookingsData);
+
+    if (isAdmin) {
+      return allList;
+    }
+
+    // Merge both perspectives to avoid empty UI when one role has items
+    const merged = [...professionalList, ...userList];
+    return merged;
+  }, [professionalBookingsData, userBookingsData, allBookingsData, isAdmin]);
+
+  const reviewsList = useMemo(() => {
+    if (!reviewsData) return [];
+    const raw: any = reviewsData as any;
+    if (Array.isArray((raw as any).reviews)) return (raw as any).reviews;
+    if (Array.isArray(raw.data?.reviews)) return raw.data.reviews;
+    if (Array.isArray(raw.data?.data?.reviews)) return raw.data.data.reviews;
+    return [];
+  }, [reviewsData]);
 
   // Calculate loading state
-  const isLoading = isLoadingNotifications || 
-    (isProfessional ? isLoadingProfessionalBookings : isLoadingUserBookings);
+  const isLoading = isLoadingNotifications || isLoadingReviews || (isAdmin ? isLoadingAllBookings : (isProfessional ? isLoadingProfessionalBookings : isLoadingUserBookings));
 
   // Calculate error state
-  const error = notificationsError || 
-    (isProfessional ? professionalBookingsError : userBookingsError);
+  const error = notificationsError || reviewsError || (isAdmin ? allBookingsError : (isProfessional ? professionalBookingsError : userBookingsError));
 
   // Transform real data into unified activity items
   const activities = useMemo(() => {
-    const items: ActivityItem[] = [];    // Add notifications as activities
-    const notifications = Array.isArray(notificationsData) ? notificationsData : [];
-    notifications.forEach((notification: { 
-      id: string; 
-      type: string; 
-      title: string; 
-      message: string; 
-      createdAt: string | Date; 
-      isRead: boolean; 
-      metadata?: Record<string, unknown>; 
-      user?: { name: string }; 
+    const items: ActivityItem[] = [];
+
+    // Add notifications as activities
+    notificationItems.forEach((notification: {
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      createdAt: string | Date;
+      isRead: boolean;
+      metadata?: Record<string, unknown>;
+      user?: { name: string };
     }) => {
-      const timestamp = typeof notification.createdAt === 'string' 
-        ? parseISO(notification.createdAt) 
+      const timestamp = typeof notification.createdAt === "string"
+        ? parseISO(notification.createdAt)
         : new Date(notification.createdAt);
+
+      const mappedType = getActivityTypeFromNotification(notification.type);
+      if (mappedType === "message_received") return; // Exclude new messages from activity feed
+      if (notification.type?.toUpperCase?.().includes("MESSAGE")) return; // Exclude any message-related notifications
 
       items.push({
         id: `notification-${notification.id}`,
-        type: getActivityTypeFromNotification(notification.type),
+        type: mappedType,
         title: notification.title,
         description: notification.message,
         timestamp,
@@ -102,97 +162,100 @@ interface ActivityItem {
         rating: notification.metadata?.rating as number,
         amount: notification.metadata?.amount as number,
         client: notification.user?.name,
-        metadata: notification.metadata
+        metadata: notification.metadata,
       });
-    });    // Add bookings as activities
-    const bookings = isProfessional 
-      ? (professionalBookingsData?.bookings || [])
-      : (userBookingsData?.bookings || []);
+    });
 
-    bookings.forEach((booking) => {
-      const timestamp = typeof booking.createdAt === 'string' 
-        ? parseISO(booking.createdAt) 
+    // Add bookings as activities
+    bookingsList.forEach((booking) => {
+      const timestamp = typeof booking.createdAt === "string"
+        ? parseISO(booking.createdAt)
         : new Date(booking.createdAt);
 
       items.push({
         id: `booking-${booking.id}`,
         type: getActivityTypeFromBookingStatus(booking.status),
-        title: getBookingTitle(booking.status),        description: `${booking.service?.title || 'Servicio'} - ${booking.client?.name || booking.professional?.name || 'Cliente'}`,
+        title: getBookingTitle(booking.status),
+        description: `${booking.service?.title || "Servicio"} - ${booking.client?.name || booking.professional?.name || "Cliente"}`,
         timestamp,
         status: booking.status.toLowerCase(),
         client: isProfessional ? booking.client?.name : booking.professional?.name,
-        metadata: { bookingId: booking.id, serviceTitle: booking.service?.title }
+        amount: booking.totalPrice,
+        metadata: { bookingId: booking.id, serviceTitle: booking.service?.title },
+      });
+    });
+
+    // Add reviews as activities
+    reviewsList.forEach((review) => {
+      const timestamp = typeof review.createdAt === "string"
+        ? parseISO(review.createdAt)
+        : new Date(review.createdAt);
+
+      items.push({
+        id: `review-${review.id}`,
+        type: "review_received",
+        title: "Nueva reseña recibida",
+        description: review.comment || "Sin comentario",
+        timestamp,
+        status: "completed",
+        rating: review.rating,
+        client: review.client?.name,
+        metadata: {
+          serviceTitle: review.booking?.service?.title,
+          bookingId: review.bookingId,
+          comment: review.comment,
+        },
       });
     });
 
     // Sort by timestamp (newest first)
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [notificationsData, userBookingsData, professionalBookingsData, isProfessional]);
+  }, [notificationItems, bookingsList, reviewsList, isProfessional]);
 
-  // Calculate stats from real data
-  const stats = useMemo(() => {
-    const thisWeekStart = subDays(new Date(), 7);
-    const lastWeekStart = subDays(new Date(), 14);
-    
-    const thisWeekActivities = activities.filter(a => a.timestamp >= thisWeekStart);
-    const lastWeekActivities = activities.filter(a => 
-      a.timestamp >= lastWeekStart && a.timestamp < thisWeekStart
-    );
+  useEffect(() => {
+    console.log("[activity] normalized notificationItems", notificationItems);
+    console.log("[activity] normalized bookingsList", bookingsList);
+    console.log("[activity] normalized reviewsList", reviewsList);
+    console.log("[activity] derived activities", activities);
+  }, [notificationItems, bookingsList, reviewsList, activities]);
 
-    const thisWeekBookings = thisWeekActivities.filter(a => a.type.includes('booking')).length;
-    const lastWeekBookings = lastWeekActivities.filter(a => a.type.includes('booking')).length;
-
-    const thisWeekEarnings = thisWeekActivities
-      .filter(a => a.amount && a.status === 'completed')
-      .reduce((sum, a) => sum + (a.amount || 0), 0);
-    
-    const lastWeekEarnings = lastWeekActivities
-      .filter(a => a.amount && a.status === 'completed')
-      .reduce((sum, a) => sum + (a.amount || 0), 0);
-
-    const thisWeekMessages = thisWeekActivities.filter(a => a.type === 'message_received').length;
-    const lastWeekMessages = lastWeekActivities.filter(a => a.type === 'message_received').length;
-
-    const thisWeekReviews = thisWeekActivities.filter(a => a.type === 'review_received').length;
-    const lastWeekReviews = lastWeekActivities.filter(a => a.type === 'review_received').length;
-
-    const thisWeekRatings = thisWeekActivities
-      .filter(a => a.rating)
-      .map(a => a.rating!)
-      .filter(r => r > 0);
-    const avgRating = thisWeekRatings.length > 0 
-      ? thisWeekRatings.reduce((sum, r) => sum + r, 0) / thisWeekRatings.length 
-      : 0;
-
-    const lastWeekRatings = lastWeekActivities
-      .filter(a => a.rating)
-      .map(a => a.rating!)
-      .filter(r => r > 0);
-    const lastWeekAvgRating = lastWeekRatings.length > 0 
-      ? lastWeekRatings.reduce((sum, r) => sum + r, 0) / lastWeekRatings.length 
-      : 0;
+  const generalStats = useMemo(() => {
+    const unread = notificationItems.filter((n) => !n.isRead).length;
+    const upcoming = bookingsList.filter((b) => {
+      const ts = new Date(b.scheduledAt).getTime();
+      const now = Date.now();
+      const status = b.status?.toUpperCase?.();
+      return ts >= now && status !== "CANCELLED" && status !== "COMPLETED";
+    }).length;
+    const completed = bookingsList.filter((b) => b.status?.toUpperCase?.() === "COMPLETED").length;
+    const cancelled = bookingsList.filter((b) => b.status?.toUpperCase?.() === "CANCELLED").length;
+    const rescheduled = bookingsList.filter((b) => {
+      const updatedAt = b.updatedAt ? new Date(b.updatedAt) : null;
+      const createdAt = b.createdAt ? new Date(b.createdAt) : null;
+      const notes = (b.notes || "").toLowerCase();
+      const hasClientNote = notes.includes("cliente:");
+      const hasRescheduleKeyword = notes.includes("reagend") || notes.includes("reprogram");
+      const hasTimestampChange = updatedAt && createdAt && updatedAt.getTime() !== createdAt.getTime();
+      return b.status?.toUpperCase?.() !== "CANCELLED" && hasTimestampChange && (hasRescheduleKeyword || hasClientNote);
+    }).length;
 
     return {
-      thisWeek: {
-        bookings: thisWeekBookings,
-        earnings: thisWeekEarnings,
-        messages: thisWeekMessages,
-        reviews: thisWeekReviews,
-        avgRating: Number(avgRating.toFixed(1))
-      },
-      lastWeek: {
-        bookings: lastWeekBookings,
-        earnings: lastWeekEarnings,
-        messages: lastWeekMessages,
-        reviews: lastWeekReviews,
-        avgRating: Number(lastWeekAvgRating.toFixed(1))
-      }
+      totalActivities: activities.length,
+      unreadNotifications: unread,
+      upcomingBookings: upcoming,
+      completedBookings: completed,
+      cancelledOrRescheduled: cancelled + rescheduled,
     };
-  }, [activities]);
+  }, [notificationItems, bookingsList, activities.length]);
+
+  // Calculate stats from real data
+    // Removed analytics weekly stats for simplified UI
 
   // Helper functions
   function getActivityTypeFromNotification(notificationType: string): string {
     switch (notificationType) {
+      case 'BOOKING_REQUEST':
+        return 'booking_pending';
       case 'MESSAGE_RECEIVED':
         return 'message_received';
       case 'BOOKING_CONFIRMED':
@@ -262,6 +325,27 @@ interface ActivityItem {
     }
   };
 
+  const formatTypeLabel = (type: string) => {
+    const map: Record<string, string> = {
+      booking_completed: "Reserva completada",
+      booking_confirmed: "Reserva confirmada",
+      booking_cancelled: "Reserva cancelada",
+      booking_pending: "Reserva pendiente",
+      booking_updated: "Reserva actualizada",
+      service_completed: "Servicio completado",
+      message_received: "Mensaje recibido",
+      review_received: "Reseña recibida",
+      profile_updated: "Perfil actualizado",
+      system_notification: "Notificación del sistema",
+    };
+    return map[type] || "Actividad";
+  };
+
+  const formatStatusLabel = (status: string) => {
+    if (!status) return "";
+    return status.replace(/_/g, " ").toLowerCase();
+  };
+
   const getActivityColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -309,33 +393,83 @@ interface ActivityItem {
     return matchesFilter && matchesSearch && matchesTime;
   });
 
-  const calculateTrend = (current: number, previous: number) => {
-    if (previous === 0) return { value: 0, direction: "neutral" };
-    const percentage = ((current - previous) / previous) * 100;
-    return {
-      value: Math.abs(percentage),
-      direction: percentage > 0 ? "up" : percentage < 0 ? "down" : "neutral"
-    };
-  };
-
-  const getTrendIcon = (direction: string) => {
-    switch (direction) {
-      case "up":
-        return <TrendingUp className="h-3 w-3 text-green-600" />;
-      case "down":
-        return <TrendingDown className="h-3 w-3 text-red-600" />;
-      default:
-        return <Minus className="h-3 w-3 text-gray-600" />;
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Actividad</h1>
         <p className="text-muted-foreground">
-          Revisa tu historial de actividades y estadísticas de rendimiento
+          Revisa tu historial de actividades, filtros y estadísticas en un solo lugar
         </p>
+      </div>
+
+        {/* Debug panel toggle */}
+        <div className="mb-4 flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setShowDebug((v) => !v)}>
+            {showDebug ? "Ocultar depuración" : "Ver depuración"}
+          </Button>
+        </div>
+
+        {showDebug && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-sm">Depuración (solo visible para ti)</CardTitle>
+              <CardDescription>Datos crudos y normalizados de la página</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-xs whitespace-pre-wrap break-words max-h-96 overflow-auto border p-2 rounded">
+                {JSON.stringify({ notificationsData, notificationItems, professionalBookingsData, userBookingsData, bookingsList, reviewsData, reviewsList, activities }, null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
+
+      {/* General Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Actividades totales</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="text-2xl font-bold">{generalStats.totalActivities}</div>
+            <Activity className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Notificaciones sin leer</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="text-2xl font-bold">{generalStats.unreadNotifications}</div>
+            <AlertCircle className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Próximas reservas</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="text-2xl font-bold">{generalStats.upcomingBookings}</div>
+            <Calendar className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Reservas completadas</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="text-2xl font-bold">{generalStats.completedBookings}</div>
+            <Badge variant="secondary" className="text-green-700 bg-green-100">OK</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Canceladas o reprogramadas</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="text-2xl font-bold">{generalStats.cancelledOrRescheduled}</div>
+            <Badge variant="secondary" className="text-amber-700 bg-amber-100">Atención</Badge>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Error State */}
@@ -362,80 +496,68 @@ interface ActivityItem {
         </Card>
       )}
 
-      <Tabs defaultValue="activity" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="activity" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Actividad Reciente
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Estadísticas
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Activity Tab */}
-        <TabsContent value="activity" className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Filtros</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar actividades..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Filtros</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar actividades..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-                <Select value={filter} onValueChange={setFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Tipo de actividad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las actividades</SelectItem>                    <SelectItem value="booking">Reservas</SelectItem>
-                    <SelectItem value="review">Reseñas</SelectItem>
-                    <SelectItem value="message">Mensajes</SelectItem>
-                    <SelectItem value="service">Servicios</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={timeFilter} onValueChange={setTimeFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <Clock className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todo el tiempo</SelectItem>
-                    <SelectItem value="today">Hoy</SelectItem>
-                    <SelectItem value="week">Esta semana</SelectItem>
-                    <SelectItem value="month">Este mes</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
-            </CardContent>
-          </Card>
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Tipo de actividad" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las actividades</SelectItem>
+                  <SelectItem value="booking">Reservas</SelectItem>
+                  <SelectItem value="review">Reseñas</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo el tiempo</SelectItem>
+                  <SelectItem value="today">Hoy</SelectItem>
+                  <SelectItem value="week">Esta semana</SelectItem>
+                  <SelectItem value="month">Este mes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Activity Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Timeline de Actividades</CardTitle>
-              <CardDescription>
-                {filteredActivities.length} actividades encontradas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredActivities.map((activity) => (
-                  <div
+        {/* Activity Timeline */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Timeline de Actividades</CardTitle>
+            <CardDescription>
+              {filteredActivities.length} actividades encontradas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredActivities.map((activity) => (
+                  <button
                     key={activity.id}
-                    className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    type="button"
+                    onClick={() => setExpandedId((prev) => (prev === activity.id ? null : activity.id))}
+                    className="w-full text-left flex items-start space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    aria-expanded={expandedId === activity.id}
                   >
                     <div className={`p-2 rounded-full ${getActivityColor(activity.status)}`}>
                       {getActivityIcon(activity.type)}
@@ -475,234 +597,70 @@ interface ActivityItem {
                           </div>
                         </div>
                         
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight
+                          className={`h-4 w-4 text-muted-foreground transition-transform ${expandedId === activity.id ? "rotate-90" : ""}`}
+                        />
                       </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {filteredActivities.length === 0 && (
-                  <div className="text-center py-8">
-                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-medium mb-2">No se encontraron actividades</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Intenta ajustar los filtros para ver más resultados
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          {/* Weekly Comparison */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Bookings */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Reservas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{stats.thisWeek.bookings}</div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {getTrendIcon(calculateTrend(stats.thisWeek.bookings, stats.lastWeek.bookings).direction)}
-                      <span className={
-                        calculateTrend(stats.thisWeek.bookings, stats.lastWeek.bookings).direction === "up" 
-                          ? "text-green-600" 
-                          : calculateTrend(stats.thisWeek.bookings, stats.lastWeek.bookings).direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }>
-                        {calculateTrend(stats.thisWeek.bookings, stats.lastWeek.bookings).value.toFixed(1)}%
-                      </span>
+                      {expandedId === activity.id && (
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">Tipo: {formatTypeLabel(activity.type)}</Badge>
+                            <Badge variant="outline">Estado: {formatStatusLabel(activity.status)}</Badge>
+                            <Badge variant="outline">Fecha: {formatTimestamp(activity.timestamp)}</Badge>
+                            {activity.amount !== undefined && <Badge variant="outline">Monto: €{activity.amount}</Badge>}
+                            {activity.client && <Badge variant="outline">Usuario: {activity.client}</Badge>}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {activity.metadata?.serviceTitle && (
+                              <div className="rounded-md border bg-muted/40 p-3">
+                                <div className="font-medium text-foreground">Servicio</div>
+                                <p className="text-sm text-muted-foreground">{activity.metadata.serviceTitle as string}</p>
+                              </div>
+                            )}
+                            {activity.metadata?.bookingId && (
+                              <div className="rounded-md border bg-muted/40 p-3">
+                                <div className="font-medium text-foreground">Reserva</div>
+                                <p className="text-sm text-muted-foreground">{String(activity.metadata.bookingId)}</p>
+                              </div>
+                            )}
+                            {activity.rating && (
+                              <div className="rounded-md border bg-muted/40 p-3">
+                                <div className="font-medium text-foreground">Calificación</div>
+                                <p className="text-sm text-muted-foreground">{activity.rating} estrellas</p>
+                              </div>
+                            )}
+                            {activity.metadata?.comment && (
+                              <div className="rounded-md border bg-muted/40 p-3">
+                                <div className="font-medium text-foreground">Comentario</div>
+                                <p className="text-sm text-muted-foreground">{activity.metadata.comment as string}</p>
+                              </div>
+                            )}
+                            {!activity.metadata?.serviceTitle && !activity.metadata?.bookingId && !activity.rating && !activity.metadata?.comment && (
+                              <div className="rounded-md border bg-muted/40 p-3">
+                                <div className="font-medium text-foreground">Sin detalles adicionales</div>
+                                <p className="text-sm text-muted-foreground">Esta actividad no tiene más información.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <Calendar className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Earnings */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Ingresos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">€{stats.thisWeek.earnings}</div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {getTrendIcon(calculateTrend(stats.thisWeek.earnings, stats.lastWeek.earnings).direction)}
-                      <span className={
-                        calculateTrend(stats.thisWeek.earnings, stats.lastWeek.earnings).direction === "up" 
-                          ? "text-green-600" 
-                          : calculateTrend(stats.thisWeek.earnings, stats.lastWeek.earnings).direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }>
-                        {calculateTrend(stats.thisWeek.earnings, stats.lastWeek.earnings).value.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <CreditCard className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Messages */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Mensajes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{stats.thisWeek.messages}</div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {getTrendIcon(calculateTrend(stats.thisWeek.messages, stats.lastWeek.messages).direction)}
-                      <span className={
-                        calculateTrend(stats.thisWeek.messages, stats.lastWeek.messages).direction === "up" 
-                          ? "text-green-600" 
-                          : calculateTrend(stats.thisWeek.messages, stats.lastWeek.messages).direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }>
-                        {calculateTrend(stats.thisWeek.messages, stats.lastWeek.messages).value.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <MessageCircle className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Reviews */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Reseñas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{stats.thisWeek.reviews}</div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {getTrendIcon(calculateTrend(stats.thisWeek.reviews, stats.lastWeek.reviews).direction)}
-                      <span className={
-                        calculateTrend(stats.thisWeek.reviews, stats.lastWeek.reviews).direction === "up" 
-                          ? "text-green-600" 
-                          : calculateTrend(stats.thisWeek.reviews, stats.lastWeek.reviews).direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }>
-                        {calculateTrend(stats.thisWeek.reviews, stats.lastWeek.reviews).value.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <Star className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Average Rating */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Calificación
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{stats.thisWeek.avgRating}</div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {getTrendIcon(calculateTrend(stats.thisWeek.avgRating, stats.lastWeek.avgRating).direction)}
-                      <span className={
-                        calculateTrend(stats.thisWeek.avgRating, stats.lastWeek.avgRating).direction === "up" 
-                          ? "text-green-600" 
-                          : calculateTrend(stats.thisWeek.avgRating, stats.lastWeek.avgRating).direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }>
-                        {calculateTrend(stats.thisWeek.avgRating, stats.lastWeek.avgRating).value.toFixed(2)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < Math.floor(stats.thisWeek.avgRating) 
-                            ? "text-yellow-400 fill-current" 
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Performance Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Insights de Rendimiento</CardTitle>
-              <CardDescription>
-                Análisis de tu actividad semanal
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    <h4 className="font-medium text-green-800">Excelente rendimiento</h4>
-                  </div>
-                  <p className="text-sm text-green-700">
-                    Tus ingresos han aumentado un {calculateTrend(stats.thisWeek.earnings, stats.lastWeek.earnings).value.toFixed(1)}% 
-                    esta semana comparado con la anterior. ¡Sigue así!
+                  </button>
+              ))}
+              
+              {filteredActivities.length === 0 && (
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-medium mb-2">No se encontraron actividades</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Intenta ajustar los filtros para ver más resultados
                   </p>
                 </div>
-
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MessageCircle className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-medium text-blue-800">Mayor actividad en mensajes</h4>
-                  </div>
-                  <p className="text-sm text-blue-700">
-                    Has recibido {stats.thisWeek.messages} mensajes esta semana. 
-                    Responder rápidamente mejora tu calificación.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Star className="h-5 w-5 text-orange-600" />
-                    <h4 className="font-medium text-orange-800">Calificación estable</h4>
-                  </div>
-                  <p className="text-sm text-orange-700">
-                    Mantienes una excelente calificación de {stats.thisWeek.avgRating} estrellas. 
-                    Continúa brindando servicios de calidad.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              )}
+            </div>
+          </CardContent>
+        </Card>
     </div>
   );
 }

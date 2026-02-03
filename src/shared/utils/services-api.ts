@@ -23,6 +23,7 @@ export interface Service {
   categoryId: string;
   professionalId: string;
   duration: number;
+  price: number;
   images: string[];
   tags: string[];
   isActive: boolean;
@@ -50,6 +51,7 @@ export interface CreateServiceData {
   title: string;
   description: string;
   categoryId: string;
+  price: number;
   duration: number;
   images?: string[];
   tags?: string[];
@@ -121,12 +123,20 @@ class ServicesApiService {
   async getServicesByProfessional(professionalId: string, params: PaginationParams = {}): Promise<{
     services: Service[];
     total: number;
+    hasMore?: boolean;
   }> {
     const response = await apiClient.get<{
       services: Service[];
       total: number;
+      hasMore?: boolean;
     }>(`${API_ENDPOINTS.SERVICES.BY_PROFESSIONAL}/${professionalId}`, params as Record<string, unknown>);
-    return response.data;
+
+    const payload = (response as any)?.data ?? response;
+    return {
+      services: payload?.services ?? [],
+      total: payload?.total ?? (payload?.services?.length ?? 0),
+      hasMore: payload?.hasMore ?? false,
+    };
   }
 
   // Create new service (professionals only)

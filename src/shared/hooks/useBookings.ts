@@ -38,6 +38,14 @@ export function useProfessionalBookings(params: BookingParams = {}) {
   });
 }
 
+export function useAllBookings(params: BookingParams = {}) {
+  return useQuery({
+    queryKey: [...BOOKINGS_QUERY_KEYS.all, "all", params],
+    queryFn: () => bookingsApi.getAllBookings(params),
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useBooking(id: string) {
   return useQuery({
     queryKey: BOOKINGS_QUERY_KEYS.detail(id),
@@ -125,7 +133,7 @@ export function useConfirmBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => bookingsApi.confirmBooking(id),
+    mutationFn: ({ id, message }: { id: string; message?: string }) => bookingsApi.confirmBooking(id, message),
     onSuccess: (confirmedBooking) => {
       // Update cache
       queryClient.setQueryData(
@@ -177,6 +185,30 @@ export function useCancelBooking() {
       toast.success('Reserva cancelada exitosamente');
     },    onError: (error: { message?: string }) => {
       toast.error(error.message || 'Error al cancelar la reserva');
+    },
+  });
+}
+
+export function useRescheduleBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, scheduledAt, message }: { id: string; scheduledAt: string; message?: string }) => 
+      bookingsApi.rescheduleBooking(id, scheduledAt, message),
+    onSuccess: (updatedBooking) => {
+      queryClient.setQueryData(
+        BOOKINGS_QUERY_KEYS.detail(updatedBooking.id),
+        updatedBooking
+      );
+
+      queryClient.invalidateQueries({ 
+        queryKey: BOOKINGS_QUERY_KEYS.lists() 
+      });
+
+      toast.success('Reserva reagendada exitosamente');
+    },
+    onError: (error: { message?: string }) => {
+      toast.error(error.message || 'Error al reagendar la reserva');
     },
   });
 }

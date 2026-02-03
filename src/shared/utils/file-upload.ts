@@ -346,7 +346,12 @@ class FileUploadService {
       xhr.open('POST', `${ROUTES.api.upload}`);
       
       // Add authentication if available
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+      const token =
+        typeof window !== 'undefined' &&
+        typeof localStorage === 'object' &&
+        typeof localStorage.getItem === 'function'
+          ? localStorage.getItem('auth-token')
+          : null;
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }
@@ -456,7 +461,12 @@ class FileUploadService {
       xhr.open('POST', `${ROUTES.api.upload}/multiple`);
       
       // Add authentication if available
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+      const token =
+        typeof window !== 'undefined' &&
+        typeof localStorage === 'object' &&
+        typeof localStorage.getItem === 'function'
+          ? localStorage.getItem('auth-token')
+          : null;
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }

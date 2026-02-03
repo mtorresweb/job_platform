@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { auth } from '@/infrastructure/auth/auth';
+import { authOptions } from '@/infrastructure/auth/config';
+import { getServerSession } from 'next-auth';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+
+type ResolvedUser = { id: string; role?: string } | undefined;
+
+async function resolveUser(request: NextRequest): Promise<ResolvedUser> {
+  const session = await getServerSession(authOptions);
+  if (session?.user) return { id: session.user.id, role: (session.user as any).role };
+  const betterAuthSession = await auth.api.getSession({ headers: request.headers });
+  if (betterAuthSession?.user) {
+    return { id: betterAuthSession.user.id, role: (betterAuthSession.user as any).role };
+  }
+  return undefined;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await resolveUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -17,14 +29,26 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');    const limit = parseInt(searchParams.get('limit') || '20');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const scope = searchParams.get('scope'); // 'all' for admin
 
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {
-      userId: session.user.id,
-    };
+    const where: Record<string, unknown> = {};
+
+    if (scope === 'all') {
+      if (user.role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, message: 'Solo administradores' },
+          { status: 403 }
+        );
+      }
+      // no userId filter
+    } else {
+      where.userId = user.id;
+    }
 
     if (unreadOnly) {
       where.isRead = false;
@@ -60,11 +84,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await resolveUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -74,7 +96,7 @@ export async function PUT(request: NextRequest) {
     // Mark all notifications as read
     await prisma.notification.updateMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         isRead: false,
       },
       data: {

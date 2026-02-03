@@ -1,182 +1,245 @@
-// ==========================================
-// CONFIGURACIÓN DE PRISMA CLIENT
-// ==========================================
-// Cliente de base de datos singleton para evitar múltiples conexiones
+import { Prisma, PrismaClient } from "@prisma/client";
 
-import { PrismaClient } from "@prisma/client";
-
-// Configuración de logs según el entorno
+// Configuration according to environment
 const logLevel: ("query" | "info" | "warn" | "error")[] =
   process.env.NODE_ENV === "development"
     ? ["query", "info", "warn", "error"]
     : ["warn", "error"];
 
-// Crear cliente de Prisma con configuración optimizada
+// Create optimized Prisma client
 const createPrismaClient = () => {
-  return new PrismaClient({
+  const client = new PrismaClient({
     log: logLevel,
     errorFormat: "pretty",
+    datasources: {
+      db: {
+        url:
+          process.env.DATABASE_URL ??
+          // Fail fast if DATABASE_URL is not set
+          (() => {
+            throw new Error("DATABASE_URL environment variable is not set");
+          })(),
+      },
+    },
+  });
+
+  return client.$extends({
+    query: {
+      $allOperations({ args, query }) {
+        const startTime = Date.now();
+        return query(args)
+          .catch(async (e) => {
+            const retryableError =
+              e.message.includes("Connection") ||
+              e.message.includes("timeout") ||
+              e.message.includes("ECONNREFUSED");
+
+            if (retryableError) {
+              console.log(
+                "⚠️ Database error, attempting reconnection:",
+                e.message,
+              );
+              await prisma.$disconnect();
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await prisma.$connect();
+              return query(args);
+            }
+            throw e;
+          })
+          .finally(() => {
+            if (process.env.NODE_ENV === "development") {
+              const duration = Date.now() - startTime;
+              if (duration > 1000) {
+                console.warn(`⚠️ Slow query detected (${duration}ms):`, args);
+              }
+            }
+          });
+      },
+    },
   });
 };
 
-// Singleton pattern para desarrollo (Hot Reload)
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Type for global Prisma instance
+type PrismaClientType = ReturnType<typeof createPrismaClient>;
+type GlobalPrismaType = { prisma: PrismaClientType | undefined };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+// Global singleton for hot reload in development
+const globalForPrisma = globalThis as unknown as GlobalPrismaType;
 
-// En desarrollo, guardar el cliente en global para evitar reinstanciación
+// Create or reuse singleton client
+const client = globalForPrisma.prisma ?? createPrismaClient();
+
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma = client;
 }
 
-// ==========================================
-// FUNCIONES UTILITARIAS PARA BASE DE DATOS
-// ==========================================
+export const prisma = client;
 
-/**
- * Función para conectar a la base de datos
- */
+// Database utility functions
+async function reconnectDatabase(client: PrismaClientType, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await client.$disconnect();
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(1000 * Math.pow(2, i), 10000)),
+      );
+      await client.$connect();
+      console.log("✅ Reconnected to database");
+      return;
+    } catch (error) {
+      console.error(
+        `❌ Reconnection attempt ${i + 1}/${attempts} failed:`,
+        error,
+      );
+      if (i === attempts - 1) throw error;
+    }
+  }
+}
+
 export const connectDatabase = async () => {
   try {
     await prisma.$connect();
     if (process.env.NODE_ENV === "development") {
-      console.log("✅ Conectado a la base de datos");
+      console.log("✅ Connected to database");
     }
   } catch (error) {
-    console.error("❌ Error conectando a la base de datos:", error);
-    throw error;
+    console.error("❌ Error connecting to database:", error);
+    await reconnectDatabase(prisma);
   }
 };
 
-/**
- * Función para desconectar de la base de datos
- */
 export const disconnectDatabase = async () => {
   try {
     await prisma.$disconnect();
     if (process.env.NODE_ENV === "development") {
-      console.log("✅ Desconectado de la base de datos");
+      console.log("✅ Disconnected from database");
     }
   } catch (error) {
-    console.error("❌ Error desconectando de la base de datos:", error);
+    console.error("❌ Error disconnecting from database:", error);
     throw error;
   }
 };
 
-/**
- * Función para verificar la salud de la base de datos
- */
 export const checkDatabaseHealth = async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return { status: "healthy", timestamp: new Date() };
   } catch (error) {
-    console.error("❌ Base de datos no disponible:", error);
+    console.error("❌ Database unavailable:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { status: "unhealthy", error: errorMessage, timestamp: new Date() };
   }
 };
 
-/**
- * Función para limpiar datos expirados (GDPR/Ley 1581)
- */
 export const cleanupExpiredData = async () => {
   try {
     const now = new Date();
+    const oneYearAgo = new Date(
+      now.getFullYear() - 1,
+      now.getMonth(),
+      now.getDate(),
+    );
 
-    // Limpiar usuarios que han excedido el tiempo de retención
-    const expiredUsers = await prisma.user.deleteMany({
-      where: {
-        dataRetentionExpiry: {
-          lt: now,
-        },
-      },
-    });
+    const [expiredUsers, expiredNotifications, oldLogs] = await Promise.all([
+      prisma.user.deleteMany({
+        where: { dataRetentionExpiry: { lt: now } },
+      }),
+      prisma.notification.deleteMany({
+        where: { expiresAt: { lt: now } },
+      }),
+      prisma.activityLog.deleteMany({
+        where: { createdAt: { lt: oneYearAgo } },
+      }),
+    ]);
 
-    // Limpiar notificaciones expiradas
-    const expiredNotifications = await prisma.notification.deleteMany({
-      where: {
-        expiresAt: {
-          lt: now,
-        },
-      },
-    });
-
-    // Limpiar logs antiguos (más de 1 año)
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-    const oldLogs = await prisma.activityLog.deleteMany({
-      where: {
-        createdAt: {
-          lt: oneYearAgo,
-        },
-      },    });
+    const results = {
+      users: expiredUsers.count,
+      notifications: expiredNotifications.count,
+      logs: oldLogs.count,
+    };
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`✅ Limpieza completada:`, {
-        expiredUsers: expiredUsers.count,
-        expiredNotifications: expiredNotifications.count,
-        oldLogs: oldLogs.count,
-      });
+      console.log("✅ Cleanup completed:", results);
     }
 
-    return {
-      success: true,
-      cleaned: {
-        users: expiredUsers.count,
-        notifications: expiredNotifications.count,
-        logs: oldLogs.count,
-      },
-    };
+    return { success: true, cleaned: results };
   } catch (error) {
-    console.error("❌ Error en limpieza de datos:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    return { success: false, error: errorMessage };
+    console.error("❌ Error in data cleanup:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 };
 
-// ==========================================
-// MANEJO DE ERRORES DE PRISMA
-// ==========================================
+type PrismaErrorType =
+  | "UNIQUE_CONSTRAINT"
+  | "NOT_FOUND"
+  | "FOREIGN_KEY_CONSTRAINT"
+  | "DATABASE_ERROR"
+  | "VALIDATION_ERROR"
+  | "CONNECTION_ERROR";
 
-export const handlePrismaError = (error: unknown) => {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const prismaError = error as { code: string; meta?: { target?: string[] } };
+interface PrismaErrorResult {
+  type: PrismaErrorType;
+  message: string;
+  field?: string[];
+  originalError?: string;
+  code?: string;
+}
 
-    if (prismaError.code === "P2002") {
-      // Violación de restricción única
-      return {
-        type: "UNIQUE_CONSTRAINT",
-        message: "El recurso ya existe",
-        field: prismaError.meta?.target,
-      };
+export const handlePrismaError = (error: unknown): PrismaErrorResult => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
+      case "P2002":
+        return {
+          type: "UNIQUE_CONSTRAINT",
+          message: "Resource already exists",
+          field: error.meta?.target as string[],
+          code: error.code,
+        };
+      case "P2025":
+        return {
+          type: "NOT_FOUND",
+          message: "Resource not found",
+          code: error.code,
+        };
+      case "P2003":
+        return {
+          type: "FOREIGN_KEY_CONSTRAINT",
+          message: "Invalid reference",
+          field: error.meta?.field_name
+            ? [error.meta.field_name as string]
+            : undefined,
+          code: error.code,
+        };
+      case "P2000":
+        return {
+          type: "VALIDATION_ERROR",
+          message: "The provided value is invalid",
+          field: error.meta?.target as string[],
+          code: error.code,
+        };
     }
-    if (prismaError.code === "P2025") {
-      // Registro no encontrado
-      return {
-        type: "NOT_FOUND",
-        message: "Recurso no encontrado",
-      };
-    }
-
-    if (prismaError.code === "P2003") {
-      // Violación de clave foránea
-      return {
-        type: "FOREIGN_KEY_CONSTRAINT",
-        message: "Referencia inválida",
-      };
-    }
+  } else if (error instanceof Prisma.PrismaClientInitializationError) {
+    return {
+      type: "CONNECTION_ERROR",
+      message: "Failed to connect to the database",
+      originalError: error.message,
+      code: error.errorCode,
+    };
+  } else if (error instanceof Prisma.PrismaClientValidationError) {
+    return {
+      type: "VALIDATION_ERROR",
+      message: "Invalid query or data",
+      originalError: error.message,
+    };
   }
 
-  // Error genérico
   return {
     type: "DATABASE_ERROR",
-    message: "Error en la base de datos",
+    message: "Unexpected database error",
     originalError: error instanceof Error ? error.message : "Unknown error",
   };
 };

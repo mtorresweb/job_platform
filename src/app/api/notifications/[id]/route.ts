@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { auth } from '@/infrastructure/auth/auth';
+import { authOptions } from '@/infrastructure/auth/config';
+import { getServerSession } from 'next-auth';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+
+type ResolvedUser = { id: string } | undefined;
+
+async function resolveUser(request: NextRequest): Promise<ResolvedUser> {
+  const session = await getServerSession(authOptions);
+  if (session?.user) return session.user;
+  const betterAuthSession = await auth.api.getSession({ headers: request.headers });
+  return betterAuthSession?.user;
+}
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await resolveUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
       );
     }
 
-    const { id } = await params;    const notification = await prisma.notification.findUnique({
+    const { id } = await params;
+    const notification = await prisma.notification.findUnique({
       where: { id },
     });
 
@@ -30,7 +40,7 @@ export async function PUT(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== user.id) {
       return NextResponse.json(
         { success: false, message: 'No tienes permisos para modificar esta notificación' },
         { status: 403 }
@@ -65,11 +75,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const user = await resolveUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -88,11 +96,12 @@ export async function DELETE(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== user.id) {
       return NextResponse.json(
         { success: false, message: 'No tienes permisos para eliminar esta notificación' },
         { status: 403 }
-      );    }
+      );
+    }
 
     await prisma.notification.delete({
       where: { id },

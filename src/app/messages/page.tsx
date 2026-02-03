@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useConversations, useMessages, useSendMessage, useMarkConversationAsRead } from "@/shared/hooks/useMessages";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useConversations, useMessages, useSendMessage, useMarkConversationAsRead, useCreateConversation } from "@/shared/hooks/useMessages";
 import { Conversation, MessageType } from "@/shared/utils/messages-api";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,6 @@ import {
   MessageSquare,
   Search,
   Send,
-  Phone,
-  VideoIcon,
-  MoreHorizontal,
   Paperclip,
   CheckCheck,
   ArrowLeft,
@@ -38,6 +36,8 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBy, setFilterBy] = useState("all");
+  const [autoAttempted, setAutoAttempted] = useState(false);
+  const searchParams = useSearchParams();
 
   const userRole = useUserRole();
 
@@ -67,11 +67,31 @@ export default function MessagesPage() {
   // Mutations
   const sendMessageMutation = useSendMessage();
   const markAsReadMutation = useMarkConversationAsRead();
+  const createConversationMutation = useCreateConversation();
+
+  // Auto-open conversation when navigated with query param
+  useEffect(() => {
+    const professionalId = searchParams.get("conversationWith") || searchParams.get("professionalId");
+    if (!professionalId || selectedConversation || createConversationMutation.isPending || autoAttempted) return;
+
+    setAutoAttempted(true);
+    createConversationMutation
+      .mutateAsync(professionalId)
+      .then((conversation) => {
+        setSelectedConversation(conversation.id);
+      })
+      .catch((err) => {
+        console.error("Failed to create conversation", err);
+      });
+  }, [searchParams, selectedConversation, createConversationMutation, autoAttempted]);
 
   const conversations = conversationsData?.conversations || [];
   
   // Get all messages from infinite query
-  const allMessages = messagesData?.pages?.flatMap(page => page.messages) || [];
+  const allMessages = (messagesData?.pages?.flatMap(page => page.messages) || []).reduce<Conversation['messages']>((acc: any[], msg: any) => {
+    if (!acc.find((m) => m.id === msg.id)) acc.push(msg);
+    return acc;
+  }, [] as any[]);
   const filteredConversations = conversations.filter((conversation) => {
     const otherUser = userRole.isProfessional ? conversation.client : conversation.professional;
     const matchesSearch = otherUser.name
@@ -92,11 +112,16 @@ export default function MessagesPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
+    const currentUserId = userRole.isProfessional
+      ? selectedConv?.professionalId
+      : selectedConv?.clientId;
+
     try {
       await sendMessageMutation.mutateAsync({
         conversationId: selectedConversation,
         content: newMessage,
         messageType: MessageType.TEXT,
+        senderId: currentUserId || undefined,
       });
       setNewMessage("");
     } catch (error) {
@@ -333,17 +358,7 @@ export default function MessagesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <VideoIcon className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <div className="flex items-center gap-2" />
                   </div>
                 </CardHeader>
 
@@ -420,10 +435,6 @@ export default function MessagesPage() {
                 {/* Message input */}
                 <div className="p-4">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-
                     <Input
                       placeholder="Escribe un mensaje..."
                       value={newMessage}

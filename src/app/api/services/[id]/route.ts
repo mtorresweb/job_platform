@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/database/prisma';
-import { auth } from '@/infrastructure/auth/auth';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/infrastructure/auth/config";
+import { auth } from "@/infrastructure/auth/auth";
 import { serviceSchema } from '@/shared/utils/validations';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+
+async function getAuthenticatedUserId(headers: Headers): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) return session.user.id;
+
+  try {
+    const betterSession = await auth.api.getSession({ headers });
+    if (betterSession?.user?.id) return betterSession.user.id;
+  } catch (error) {
+    console.error("Error obteniendo sesión better-auth:", error);
+  }
+
+  return null;
+}
 
 export async function GET(
   request: NextRequest,
@@ -71,11 +87,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const userId = await getAuthenticatedUserId(request.headers);
 
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -111,7 +125,7 @@ export async function PUT(
       );
     }
 
-    if (service.professional.user.id !== session.user.id) {
+    if (service.professional.user.id !== userId) {
       return NextResponse.json(
         { success: false, message: 'No tienes permisos para editar este servicio' },
         { status: 403 }
@@ -157,11 +171,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const userId = await getAuthenticatedUserId(request.headers);
 
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }
@@ -188,7 +200,7 @@ export async function DELETE(
       );
     }
 
-    if (service.professional.user.id !== session.user.id) {
+    if (service.professional.user.id !== userId) {
       return NextResponse.json(
         { success: false, message: 'No tienes permisos para eliminar este servicio' },
         { status: 403 }

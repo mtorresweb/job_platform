@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "@/shared/utils/ssr-polyfills";
 import { APP_CONFIG } from "@/shared/constants";
 import { Providers } from "@/shared/providers/providers";
 import { GlobalNavbar } from "@/components/layout/global-navbar";

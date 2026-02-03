@@ -3,18 +3,51 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import bcrypt from "bcryptjs";
 import { prisma } from "../database/prisma";
 
+type UserRole = "CLIENT" | "PROFESSIONAL" | "ADMIN";
+
+type SignUpData = {
+  email: string;
+  password: string;
+  name: string;
+  role?: UserRole;
+};
+
+type SignInData = {
+  email: string;
+  password: string;
+};
+
+type AuthResponse = {
+  id: string;
+  role: UserRole;
+  email: string;
+  name: string;
+  profileCompleted: boolean;
+  isEmailVerified: boolean;
+  isActive: boolean;
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
-  }),  emailAndPassword: {
+  }),
+  emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     minPasswordLength: 8,
     maxPasswordLength: 128,
+    smtp: {
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+      from:
+        process.env.SMTP_FROM || "notificaciones@jobplatform.michaelt.engineer",
+    },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 días
-    updateAge: 60 * 60 * 24, // 1 día
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // 1 day
   },
   user: {
     additionalFields: {
@@ -30,39 +63,144 @@ export const auth = betterAuth({
       },
       profileCompleted: {
         type: "boolean",
-        required: true,
+        required: false,
         defaultValue: false,
         input: false,
       },
     },
   },
   callbacks: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async signUp(user: any) {
-      // Hash de la contraseña antes de guardar
-      if (user.password) {
-        user.password = await bcrypt.hash(user.password, 12);
-      }
+    async signUp({
+      email,
+      password,
+      name,
+      role,
+    }: SignUpData): Promise<{ id: string }> {
+      try {
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+        });
 
+        if (existingUser) {
+          throw new Error("Ya existe un usuario con este correo electrónico");
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create user
+        const user = await prisma.user.create({
+          data: {
+            email,
+            name,
+            password: hashedPassword,
+            role: role || "CLIENT",
+            profileCompleted: false,
+            isActive: true,
+            isEmailVerified: false,
+            acceptedTermsAt: new Date(),
+            acceptedPrivacyAt: new Date(),
+          },
+        });
+
+        // Create the credentials account using a raw SQL query
+        await prisma.$executeRaw`
+          INSERT INTO accounts ("userId", type, provider, "providerAccountId")
+          VALUES (${user.id}, 'credentials', 'credentials', ${email})
+        `;
+
+        // If professional role, create professional profile
+        if (role === "PROFESSIONAL") {
+          await prisma.professional.create({
+            data: {
+              userId: user.id,
+              specialties: [],
+            },
+          });
+        }
+
+        return { id: user.id };
+      } catch (error) {
+        console.error("Error in signUp callback:", error);
+        throw error;
+      }
+    },
+    async signIn({ email, password }: SignInData): Promise<AuthResponse> {
+      try {
+        // Find user
+        console.log("Attempting signIn for:", { email });
+        console.log(
+          "Password received:",
+          typeof password === "string" ? "string" : typeof password,
+        );
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+            profileCompleted: true,
+            isActive: true,
+            isEmailVerified: true,
+          },
+        });
+
+        if (!user) {
+          const error = new Error("Credenciales inválidas");
+          (error as Error & { code?: string }).code = "INVALID_CREDENTIALS";
+          throw error;
+        }
+
+        // Check if user is active
+        if (!user.isActive) {
+          const error = new Error("Tu cuenta está inactiva. Contacta a un administrador.");
+          (error as Error & { code?: string }).code = "ACCOUNT_INACTIVE";
+          throw error;
+        }
+
+        // Verify password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+          const error = new Error("Credenciales inválidas");
+          (error as Error & { code?: string }).code = "INVALID_CREDENTIALS";
+          throw error;
+        }
+
+        // Update last login
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
+        return {
+          id: user.id,
+          role: user.role as UserRole,
+          name: user.name,
+          email: user.email,
+          profileCompleted: user.profileCompleted,
+          isEmailVerified: user.isEmailVerified,
+          isActive: user.isActive,
+        };
+      } catch (error) {
+        console.error("Error in signIn callback:", error);
+        throw error;
+      }
+    },
+    async beforeSignUp(user: {
+      password: string;
+    }): Promise<{ password: string }> {
+      user.password = String(user.password);
+      user.password = await bcrypt.hash(user.password, 12);
       return user;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async signIn(user: any) {
-      // Verificar si el usuario está activo
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-      });
-
-      if (dbUser && !dbUser.isActive) {
-        throw new Error("Cuenta desactivada. Contacta al administrador.");
-      }
-
-      return true;
-    },
   },
-  rateLimit: {
-    window: 60, // 1 minuto
-    max: 10, // Máximo 10 intentos por minuto
+  rateLimiting: {
+    enabled: true,
+    max: 10, // Maximum 10 attempts per minute
   },
-  trustedOrigins: [process.env.NEXTAUTH_URL!, "http://localhost:3000"],
 });
+
+export default auth;

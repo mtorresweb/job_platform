@@ -2,12 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { auth } from '@/infrastructure/auth/auth';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/infrastructure/auth/config';
+
+async function resolveSession(request: NextRequest) {
+  // 1) Try NextAuth session
+  const nextSession = await getServerSession(authOptions);
+  if (nextSession?.user) {
+    return { user: nextSession.user } as { user: { id: string } };
+  }
+
+  // 2) Try better-auth via cookies/headers
+  let session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session?.user) {
+    const authHeader = request.headers.get('authorization');
+    const bearer = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null;
+
+    if (bearer) {
+      const headers = new Headers();
+      headers.set('Authorization', `Bearer ${bearer}`);
+      session = await auth.api.getSession({ headers });
+    }
+  }
+
+  return session;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await resolveSession(request);
 
     if (!session?.user) {
       return NextResponse.json(
@@ -31,7 +57,7 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    const [conversations, total] = await Promise.all([
+    const [conversations, total, unreadCounts] = await Promise.all([
       prisma.conversation.findMany({
         where,
         include: {
@@ -68,11 +94,26 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.conversation.count({ where }),
+      prisma.message.groupBy({
+        by: ['conversationId'],
+        where: {
+          isRead: false,
+          senderId: { not: session.user.id },
+          conversation: { OR: [{ clientId: session.user.id }, { professionalId: session.user.id }] },
+        },
+        _count: true,
+      }),
     ]);
 
-    // Transform to include lastMessage
+    const unreadCountMap = unreadCounts.reduce<Record<string, number>>((acc, curr) => {
+      acc[curr.conversationId] = curr._count;
+      return acc;
+    }, {});
+
+    // Transform to include lastMessage and user-specific unread count
     const transformedConversations = conversations.map((conv) => ({
       ...conv,
+      unreadCount: unreadCountMap[conv.id] || 0,
       lastMessage: conv.messages[0] || null,
       messages: undefined,
     }));

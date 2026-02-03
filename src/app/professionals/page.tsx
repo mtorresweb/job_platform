@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function ProfessionalsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Todas las ciudades");
   const [sortBy, setSortBy] = useState("rating");
@@ -102,6 +104,10 @@ export default function ProfessionalsPage() {
     professional: Professional;
     isListView?: boolean;
   }) => {
+    const handleContact = () => {
+      router.push(`/messages?conversationWith=${professional.user.id}`);
+    };
+
     return (
     <Card
       className={`h-full hover:shadow-lg transition-shadow ${
@@ -193,7 +199,11 @@ export default function ProfessionalsPage() {
             <Button asChild className="flex-1">
               <Link href={`/professionals/${professional.id}`}>Ver Perfil</Link>
             </Button>
-            <Button variant="outline" className="flex-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleContact}
+            >
               <MessageSquare className="h-4 w-4 mr-2" />
               Contactar
             </Button>
