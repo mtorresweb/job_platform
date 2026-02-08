@@ -26,20 +26,18 @@ import {
   Zap,
   ChevronRight,
   Wrench,
-  Home,
   Car,
   Camera,
-  PaintBucket,
   Monitor,
 } from "lucide-react";
 import { usePlatformStats } from "@/shared/hooks/useReviews";
 
 export default function HomePage() {
   // Fetch real platform statistics
-  const { 
-    data: platformStats, 
-    isLoading: statsLoading, 
-    error: statsError 
+  const {
+    data: platformStats,
+    isLoading: statsLoading,
+    error: statsError,
   } = usePlatformStats();
 
   const formatMetric = (value?: number) => {
@@ -54,6 +52,7 @@ export default function HomePage() {
     }
     return value.toLocaleString("es-CO");
   };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -194,25 +193,6 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Home className="h-8 w-8 text-blue-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Hogar</h3>
-                <p className="text-sm text-foreground/60">
-                  Plomería, electricidad, reparaciones
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <PaintBucket className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Pintura</h3>
-                <p className="text-sm text-foreground/60">
-                  Interior, exterior, decoración
-                </p>
               </CardContent>
             </Card>
 
@@ -284,7 +264,7 @@ export default function HomePage() {
               Características Premium
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              ¿Por qué elegir ServiciosPro?
+              ¿Por qué elegir Red Profesional?
             </h2>
             <p className="text-xl text-foreground/60 max-w-2xl mx-auto">
               Ofrecemos una experiencia completa y segura para profesionales y
@@ -536,37 +516,37 @@ export default function HomePage() {
         </div>
       </section>{" "}
       {/* CTA Section */}
-      <section className="py-20  relative overflow-hidden">
+      <section className="py-20 relative overflow-hidden bg-background">
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-grid-white/[0.05] [mask-image:linear-gradient(0deg,rgba(255,255,255,0.8),rgba(255,255,255,0.3))]"></div>
-        <div className="absolute top-0 left-1/4 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
+        <div className="absolute inset-0 bg-grid-slate-200/40 [mask-image:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.7))]"></div>
+        <div className="absolute top-6 left-1/5 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/5 w-64 h-64 bg-accent/15 rounded-full blur-3xl"></div>
 
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="max-w-3xl mx-auto space-y-8">
             {" "}
             <Badge
               variant="secondary"
-              className="bg-white/10 text-white border-white/20 backdrop-blur-sm"
+              className="bg-secondary text-foreground border border-border shadow-sm"
             >
               <Zap className="mr-2 h-4 w-4" />
               Únete a la Revolución
             </Badge>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight drop-shadow-lg">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
               ¿Listo para{" "}
-              <span className="bg-gradient-to-r from-white to-white/90 bg-clip-text text-transparent">
+              <span className="">
                 comenzar?
               </span>
             </h2>
-            <p className="text-xl md:text-2xl text-white/95 max-w-2xl mx-auto leading-relaxed drop-shadow-sm">
+            <p className="text-xl md:text-2xl text-foreground/80 max-w-2xl mx-auto leading-relaxed drop-shadow-sm">
               Únete a miles de profesionales y clientes que ya confían en
               nuestra plataforma
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8">
               <Button
                 size="lg"
-                variant="secondary"
-                className="px-8 py-4 text-lg font-medium  text-primary shadow-xl hover:shadow-2xl transition-all duration-300"
+                variant="default"
+                className="px-8 py-4 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
                 asChild
               >
                 <Link href="/auth/register">
@@ -577,7 +557,7 @@ export default function HomePage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="px-8 py-4 text-lg font-medium border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
+                className="px-8 py-4 text-lg font-medium border-2 border-border text-foreground hover:bg-primary/5 transition-all duration-300"
                 asChild
               >
                 <Link href="/services">
@@ -608,9 +588,9 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           {/* Main footer content */}
           <div className="py-16">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Company info */}
-              <div className="lg:col-span-1">
+              <div>
                 <div className="flex items-center space-x-2 mb-6">
                   <div className="h-10 w-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
                     <span className="text-primary-foreground font-bold text-lg">
@@ -618,31 +598,18 @@ export default function HomePage() {
                     </span>
                   </div>
                   <span className="font-bold text-2xl bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                    ServiciosPro
+                    Red Profesional
                   </span>
                 </div>
                 <p className="text-foreground/70 mb-6 max-w-sm">
                   La plataforma líder en servicios profesionales en Colombia.
                   Conectamos talento con oportunidades.
                 </p>
-                <div className="flex space-x-4">
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <Users className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <Star className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
-              {/* For Clients */}
+              {/* Navega */}
               <div>
-                <h3 className="font-semibold text-lg mb-6 text-foreground">
-                  Para Clientes
-                </h3>
+                <h3 className="font-semibold text-lg mb-6 text-foreground">Explora</h3>
                 <ul className="space-y-3 text-foreground/70">
                   <li>
                     <Link
@@ -664,160 +631,90 @@ export default function HomePage() {
                   </li>
                   <li>
                     <Link
-                      href="/safety"
+                      href="/faq"
                       className="hover:text-primary transition-colors flex items-center"
                     >
                       <ChevronRight className="h-4 w-4 mr-1" />
-                      Seguridad y Confianza
+                      FAQ
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/guarantees"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Garantías
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-
-              {/* For Professionals */}
-              <div>
-                <h3 className="font-semibold text-lg mb-6 text-foreground">
-                  Para Profesionales
-                </h3>
-                <ul className="space-y-3 text-foreground/70">
-                  {" "}
-                  <li>
-                    <Link
-                      href="/become-pro"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Ser Profesional
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/benefits"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Beneficios Gratuitos
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/success-stories"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Casos de Éxito
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/resources"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Recursos y Guías
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Company */}
-              <div>
-                <h3 className="font-semibold text-lg mb-6 text-foreground">
-                  Empresa
-                </h3>
-                <ul className="space-y-3 text-foreground/70">
                   <li>
                     <Link
                       href="/about"
                       className="hover:text-primary transition-colors flex items-center"
                     >
                       <ChevronRight className="h-4 w-4 mr-1" />
-                      Acerca de Nosotros
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/contact"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Contacto
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/careers"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Trabaja con Nosotros
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/blog"
-                      className="hover:text-primary transition-colors flex items-center"
-                    >
-                      <ChevronRight className="h-4 w-4 mr-1" />
-                      Blog
+                      Acerca de
                     </Link>
                   </li>
                 </ul>
               </div>
-            </div>
-          </div>
-          {/* Newsletter section */}{" "}
-          <div className="border-t py-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div>
-                <h4 className="font-semibold mb-2">Mantente informado</h4>
-                <p className="text-sm text-foreground/60">
-                  Recibe las últimas noticias y actualizaciones gratuitas
-                </p>
-              </div>
-              <div className="flex gap-3 w-full md:w-auto">
-                <input
-                  type="email"
-                  placeholder="Tu email"
-                  className="flex-1 md:w-64 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-background"
-                />
-                <Button>Unirse</Button>
+
+              {/* Profesionales y Legal */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-6 text-foreground">Profesionales</h3>
+                  <ul className="space-y-3 text-foreground/70">
+                    <li>
+                      <Link
+                        href="/auth/register"
+                        className="hover:text-primary transition-colors flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Sé Profesional
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/professionals"
+                        className="hover:text-primary transition-colors flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Ver Profesionales
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-6 text-foreground">Legal</h3>
+                  <ul className="space-y-3 text-foreground/70">
+                    <li>
+                      <Link
+                        href="/legal/privacy"
+                        className="hover:text-primary transition-colors flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Privacidad
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/legal/terms"
+                        className="hover:text-primary transition-colors flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Términos
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/legal/cookies"
+                        className="hover:text-primary transition-colors flex items-center"
+                      >
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                        Cookies
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
           {/* Bottom footer */}
           <div className="border-t py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-foreground/60">
-              <p>&copy; 2024 ServiciosPro. Todos los derechos reservados.</p>
-              <div className="flex space-x-6">
-                <Link
-                  href="/legal/privacy"
-                  className="hover:text-primary transition-colors"
-                >
-                  Privacidad
-                </Link>
-                <Link
-                  href="/legal/terms"
-                  className="hover:text-primary transition-colors"
-                >
-                  Términos
-                </Link>
-                <Link
-                  href="/legal/cookies"
-                  className="hover:text-primary transition-colors"
-                >
-                  Cookies
-                </Link>
-              </div>
+              <p>&copy; 2024 Red Profesional. Todos los derechos reservados.</p>
+              <p className="text-foreground/50">Construyendo confianza y acceso libre a talento.</p>
             </div>
           </div>
         </div>

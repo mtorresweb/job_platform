@@ -51,11 +51,11 @@ export function GlobalNavbar() {
             <Link href="/" className="flex items-center space-x-2">
               <div className="h-10 w-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-primary-foreground font-bold text-lg">
-                  SP
+                  RP
                 </span>
               </div>
               <span className="font-bold text-2xl bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                ServiciosPro
+                Red Profesional
               </span>
             </Link>
           </div>

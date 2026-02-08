@@ -45,7 +45,7 @@ export default function BenefitsPage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-foreground/70 max-w-3xl mx-auto leading-relaxed">
-              Disfruta de todas las funcionalidades premium de ServiciosPro sin
+              Disfruta de todas las funcionalidades premium de Red Profesional sin
               pagar ni un peso. Sin pruebas gratuitas, sin restricciones, sin
               sorpresas.
             </p>
@@ -463,7 +463,7 @@ export default function BenefitsPage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              ServiciosPro vs. Otras Plataformas
+              Red Profesional vs. Otras Plataformas
             </h2>
             <p className="text-xl text-foreground/60 max-w-2xl mx-auto">
               Ve por qué somos la mejor opción para profesionales y clientes
@@ -481,7 +481,7 @@ export default function BenefitsPage() {
                           Característica
                         </th>
                         <th className="text-center p-6 font-semibold text-primary">
-                          ServiciosPro
+                          Red Profesional
                         </th>
                         <th className="text-center p-6 font-semibold text-foreground/60">
                           Otras Plataformas

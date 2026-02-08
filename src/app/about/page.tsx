@@ -43,7 +43,7 @@ export default function AboutPage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-foreground/70 max-w-3xl mx-auto leading-relaxed">
-              ServiciosPro nació con la misión de democratizar el acceso a
+              Red Profesional nació con la misión de democratizar el acceso a
               servicios profesionales de calidad. Creemos que conectar talento
               con oportunidades debe ser completamente gratuito.
             </p>
@@ -129,8 +129,8 @@ export default function AboutPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-foreground/70">
-                    Mantenemos altos estándares de calidad a través de
-                    verificaciones y un sistema de reseñas transparente.
+                    Elevamos el estándar con reseñas visibles, portafolios y
+                    perfiles completos para que tomes decisiones informadas.
                   </p>
                 </CardContent>
               </Card>
@@ -228,7 +228,7 @@ export default function AboutPage() {
                 Nuestros Valores
               </h2>
               <p className="text-xl text-foreground/60 max-w-2xl mx-auto">
-                Los principios que guían cada decisión en ServiciosPro
+                Los principios que guían cada decisión en Red Profesional
               </p>
             </div>
 
@@ -282,8 +282,9 @@ export default function AboutPage() {
                   <div>
                     <h3 className="font-semibold mb-2">Confianza</h3>
                     <p className="text-sm text-foreground/70">
-                      Verificamos profesionales y protegemos a nuestra
-                      comunidad.
+                      Cuidamos a la comunidad con reseñas visibles y diálogo
+                      directo; revisa calificaciones y alinea expectativas con
+                      el profesional antes de contratar.
                     </p>
                   </div>
                 </div>
@@ -320,21 +321,23 @@ export default function AboutPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4 text-center">
+      <section className="py-20 relative overflow-hidden bg-background">
+        <div className="absolute inset-0 bg-grid-slate-200/40 [mask-image:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.7))]"></div>
+        <div className="absolute top-8 left-1/5 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/5 w-64 h-64 bg-accent/15 rounded-full blur-3xl"></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
           <div className="max-w-3xl mx-auto space-y-8">
-            <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
               Únete a la revolución gratuita
             </h2>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl text-foreground/80 max-w-2xl mx-auto leading-relaxed">
               Forma parte de una comunidad que cree en el poder del talento sin
               barreras económicas
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button
                 size="lg"
-                variant="secondary"
-                className="px-8 py-4 text-lg font-medium"
+                className="px-8 py-4 text-lg font-medium shadow-lg hover:shadow-xl"
                 asChild
               >
                 <Link href="/auth/register">
@@ -345,7 +348,7 @@ export default function AboutPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="px-8 py-4 text-lg font-medium border-white/30 text-white hover:bg-white/10"
+                className="px-8 py-4 text-lg font-medium border-2 border-border text-foreground hover:bg-primary/5"
                 asChild
               >
                 <Link href="/services">

@@ -3,6 +3,11 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import bcrypt from "bcryptjs";
 import { prisma } from "../database/prisma";
 
+const smtpFrom = process.env.SMTP_FROM;
+if (!smtpFrom) {
+  throw new Error("SMTP_FROM no configurado");
+}
+
 type UserRole = "CLIENT" | "PROFESSIONAL" | "ADMIN";
 
 type SignUpData = {
@@ -41,8 +46,7 @@ export const auth = betterAuth({
       port: Number(process.env.SMTP_PORT),
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
-      from:
-        process.env.SMTP_FROM || "notificaciones@jobplatform.michaelt.engineer",
+      from: smtpFrom,
     },
   },
   session: {

@@ -3,12 +3,11 @@
 // ==========================================
 
 export const APP_CONFIG = {
-  name: "ServicesPro",
+  name: "Red Profesional",
   description: "Plataforma de servicios profesionales",
   version: "1.0.0",
   url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  supportEmail: "soporte@servicespro.com",
-  companyName: "ServicesPro Colombia SAS",
+  companyName: "Red Profesional SAS",
 } as const;
 
 // ==========================================
@@ -276,7 +275,6 @@ export const GDPR_CONFIG = {
   privacyPolicy: {
     version: "1.0",
     lastUpdated: "2024-01-01",
-    contactEmail: "privacidad@servicespro.com",
   },
 } as const;
 

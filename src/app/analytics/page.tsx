@@ -523,7 +523,7 @@ export default function AnalyticsPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <DollarSign className="h-5 w-5" />
-                      Ahorro en ServiciosPro vs Otras Plataformas
+                      Ahorro en Red Profesional vs Otras Plataformas
                     </CardTitle>
                     <CardDescription>
                       Dinero que te has ahorrado al usar nuestra plataforma gratuita
@@ -578,7 +578,7 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <CardTitle>Estado de la Plataforma</CardTitle>
                 <CardDescription>
-                  Métricas clave del ecosistema ServiciosPro
+                  Métricas clave del ecosistema Red Profesional
                 </CardDescription>
               </CardHeader>
               <CardContent>

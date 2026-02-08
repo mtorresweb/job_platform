@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendMail(
         email,
-        "Nuevo inicio de sesión en ServiciosPro",
+        "Nuevo inicio de sesión en Red Profesional",
         `
           <h2>Hola ${safeUser.name || ""}, detectamos un nuevo inicio de sesión.</h2>
           <p><strong>Fecha/Hora (UTC):</strong> ${clientInfo.timestamp}</p>
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           <p>Revisa tu cuenta aquí:</p>
           <p>
             <a href="${baseUrl}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
-              Ir a ServiciosPro
+              Ir a Red Profesional
             </a>
           </p>
           <p>Si no fuiste tú, te recomendamos cambiar tu contraseña de inmediato.</p>

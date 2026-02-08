@@ -58,7 +58,7 @@ export default function HomePage() {
                   SP
                 </span>
               </div>
-              <span className="font-bold text-xl">ServiciosPro</span>
+              <span className="font-bold text-xl">Red Profesional</span>
             </div>
 
             <nav className="hidden md:flex items-center space-x-6">
@@ -148,7 +148,7 @@ export default function HomePage() {
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              ¿Por qué elegir ServiciosPro?
+              ¿Por qué elegir Red Profesional?
             </h2>
             <p className="text-xl text-foreground/60 max-w-2xl mx-auto">
               Ofrecemos una experiencia completa para profesionales y clientes
@@ -285,7 +285,7 @@ export default function HomePage() {
             <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground">
               ¿Listo para comenzar?
             </h2>
-            <p className="text-xl text-primary-foreground/80">
+            <p className="text-xl text-primary-foreground/90">
               Únete a miles de profesionales y clientes que ya confían en
               nuestra plataforma
             </p>
@@ -314,13 +314,13 @@ export default function HomePage() {
               <div className="flex items-center space-x-2 mb-4">
                 <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-sm">
-                    SP
+                    RP
                   </span>
                 </div>
-                <span className="font-bold text-xl">ServiciosPro</span>
+                <span className="font-bold text-xl">Red Profesional</span>
               </div>
               <p className="text-foreground/60 text-sm">
-                La plataforma líder en servicios profesionales en Colombia.
+                La plataforma líder en servicios profesionales en Aguachica.
               </p>
             </div>
 
@@ -424,7 +424,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t mt-8 pt-8 text-center text-sm text-foreground/60">
-            <p>&copy; 2024 ServiciosPro. Todos los derechos reservados.</p>
+            <p>&copy; 2024 Red Profesional. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

@@ -74,13 +74,13 @@ export async function POST(req: NextRequest) {
     try {
       await sendMail(
         email,
-        "¡Bienvenido a ServiciosPro!",
+        "¡Bienvenido a Red Profesional!",
         `
-          <h2>Hola ${name}, ¡bienvenido a ServiciosPro!</h2>
+          <h2>Hola ${name}, ¡bienvenido a Red Profesional!</h2>
           <p>Tu cuenta se creó correctamente. Ya puedes iniciar sesión y completar tu perfil para recibir mejores oportunidades.</p>
           <p>
             <a href="${welcomeLink}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
-              Ir a ServiciosPro
+              Ir a Red Profesional
             </a>
           </p>
           <p>Si no creaste esta cuenta, ignora este mensaje.</p>

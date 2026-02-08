@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +12,6 @@ import {
   DollarSign,
   Shield,
   Users,
-  MessageSquare,
   Star,
 } from "lucide-react";
 
@@ -22,23 +20,18 @@ const faqs = [
     category: "Modelo Gratuito",
     questions: [
       {
-        question: "¿ServiciosPro es realmente 100% gratuito?",
+        question: "¿Red Profesional es realmente 100% gratuito?",
         answer:
           "Sí, absolutamente. No cobramos comisiones, no tenemos planes premium, no hay costos ocultos. Tanto profesionales como clientes pueden usar todas las funcionalidades sin pagar nada.",
         highlighted: true,
       },
       {
-        question: "¿Cómo se sostiene económicamente la plataforma?",
-        answer:
-          "Nos sostenemos a través de partnerships estratégicos con empresas que apoyan el ecosistema de servicios profesionales, eficiencia tecnológica y colaboraciones institucionales. Nunca extraemos dinero de las transacciones entre usuarios.",
-      },
-      {
         question: "¿Van a empezar a cobrar en el futuro?",
         answer:
-          "Tenemos un compromiso público de mantener ServiciosPro gratuito durante al menos 10 años. Este compromiso está respaldado por nuestros inversionistas y forma parte de nuestros estatutos corporativos.",
+          "Tenemos un compromiso público de mantener Red Profesional gratuito durante al menos 10 años como parte de nuestros estatutos corporativos.",
       },
       {
-        question: "¿Qué diferencia a ServiciosPro de otras plataformas?",
+        question: "¿Qué diferencia a Red Profesional de otras plataformas?",
         answer:
           "Mientras que otras plataformas cobran entre 5% y 20% de comisión, nosotros no cobramos absolutamente nada. El 100% del pago va directo al profesional, sin intermediarios.",
       },
@@ -60,12 +53,12 @@ const faqs = [
       {
         question: "¿Puedo promocionar mis servicios gratis?",
         answer:
-          "Sí, todas las herramientas de promoción están incluidas: perfil destacado, galería de trabajos, reseñas de clientes, y aparición en búsquedas. Todo sin costo adicional.",
+          "Destaca con un perfil completo, portafolio y reseñas: así ganas visibilidad en las búsquedas orgánicas.",
       },
       {
         question: "¿Qué pasa si tengo problemas con un cliente?",
         answer:
-          "Ofrecemos soporte gratuito para mediación de conflictos, sistema de reseñas transparente y herramientas de comunicación segura, todo incluido sin costo.",
+          "Usa el chat para documentar acuerdos y las reseñas para compartir tu experiencia. Define términos claros por escrito y conserva los comprobantes.",
       },
     ],
   },
@@ -80,17 +73,17 @@ const faqs = [
       {
         question: "¿Las reseñas y calificaciones son reales?",
         answer:
-          "Todas las reseñas son de clientes verificados que realmente contrataron el servicio. Tenemos sistemas anti-fraude para garantizar autenticidad, todo como parte de nuestro servicio gratuito.",
+          "Las reseñas provienen de la comunidad. Revisa contexto y fechas; si necesitas más detalle, pide ejemplos de trabajos similares.",
       },
       {
         question: "¿Qué garantías tengo al contratar un servicio?",
         answer:
-          "Ofrecemos un sistema de calificaciones transparente, verificación de profesionales, soporte para resolución de disputas y herramientas de comunicación segura, todo incluido.",
+          "Apóyate en reseñas, perfiles y portafolios, y acuerda entregables, fechas y pagos directamente con el profesional.",
       },
       {
         question: "¿Puedo buscar profesionales en toda Colombia?",
         answer:
-          "Sí, puedes buscar profesionales en cualquier ciudad de Colombia, filtrar por ubicación, especialidad, calificación y más, todo completamente gratis.",
+          "Puedes contactar profesionales de distintas zonas; revisa su cobertura en el perfil y confirma disponibilidad por mensaje.",
       },
     ],
   },
@@ -100,7 +93,7 @@ const faqs = [
       {
         question: "¿Cómo verifican a los profesionales sin cobrar?",
         answer:
-          "Tenemos un proceso riguroso de verificación que incluye validación de identidad, revisión de credenciales y seguimiento de desempeño. Los costos están cubiertos por nuestro modelo sostenible.",
+          "Mostramos perfiles, portafolios y reseñas para que tomes decisiones informadas. Usa el chat para aclarar experiencia, disponibilidad y alcance antes de contratar.",
       },
       {
         question: "¿Mis datos están seguros?",
@@ -110,7 +103,7 @@ const faqs = [
       {
         question: "¿Qué pasa si un profesional no cumple?",
         answer:
-          "Tenemos sistemas de reporte, mediación gratuita y un proceso de resolución de conflictos. También mantenemos un historial de desempeño de cada profesional.",
+          "Deja una reseña y reporta comportamientos inapropiados. Acordar términos claros y conservar comprobantes protege a ambas partes.",
       },
     ],
   },
@@ -139,40 +132,6 @@ const faqs = [
 export default function FaqPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header Navigation */}
-      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/" className="flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Volver al Inicio
-              </Link>
-            </Button>
-            <div className="h-6 w-px bg-border" />
-            <nav className="flex items-center space-x-6">
-              <Link
-                href="/about"
-                className="text-foreground/60 hover:text-foreground transition-colors"
-              >
-                Acerca de
-              </Link>
-              <Link
-                href="/benefits"
-                className="text-foreground/60 hover:text-foreground transition-colors"
-              >
-                Beneficios
-              </Link>
-              <Link
-                href="/transparency"
-                className="text-foreground/60 hover:text-foreground transition-colors"
-              >
-                Transparencia
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-12">
         {/* Hero Section */}
@@ -190,7 +149,7 @@ export default function FaqPage() {
           </h1>
 
           <p className="text-xl md:text-2xl text-foreground/70 max-w-4xl mx-auto leading-relaxed">
-            Resolvemos todas tus dudas sobre cómo funciona ServiciosPro y por
+            Resolvemos todas tus dudas sobre cómo funciona Red Profesional y por
             qué podemos mantenerlo 100% gratuito para siempre.
           </p>
         </div>
@@ -213,10 +172,10 @@ export default function FaqPage() {
             <CardContent className="pt-6">
               <Shield className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
-                100%
+                Perfil
               </div>
               <p className="text-sm text-blue-600 dark:text-blue-300">
-                Seguro y verificado
+                Reseñas y portafolios visibles
               </p>
             </CardContent>
           </Card>
@@ -237,10 +196,10 @@ export default function FaqPage() {
             <CardContent className="pt-6">
               <Star className="h-8 w-8 text-orange-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">
-                24/7
+                Comunidad
               </div>
               <p className="text-sm text-orange-600 dark:text-orange-300">
-                Soporte gratuito
+                Reseñas y contacto directo
               </p>
             </CardContent>
           </Card>
@@ -306,7 +265,7 @@ export default function FaqPage() {
                     <th className="text-center p-4 font-semibold text-primary">
                       <div className="flex items-center justify-center gap-2">
                         <Heart className="h-5 w-5" />
-                        ServiciosPro
+                        Red Profesional
                       </div>
                     </th>
                     <th className="text-center p-4 font-semibold">
@@ -347,21 +306,6 @@ export default function FaqPage() {
                       </div>
                     </td>
                   </tr>
-                  <tr className="border-t">
-                    <td className="p-4 font-medium">Soporte al cliente</td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-2 text-green-600">
-                        <CheckCircle className="h-5 w-5" />
-                        24/7 Gratis
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-2 text-red-600">
-                        <XCircle className="h-5 w-5" />
-                        Solo premium
-                      </div>
-                    </td>
-                  </tr>
                   <tr className="border-t bg-muted/20">
                     <td className="p-4 font-medium">
                       Herramientas de promoción
@@ -369,7 +313,7 @@ export default function FaqPage() {
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-2 text-green-600">
                         <CheckCircle className="h-5 w-5" />
-                        Todas incluidas
+                        Visibilidad orgánica (perfil + reseñas)
                       </div>
                     </td>
                     <td className="p-4 text-center">
@@ -383,31 +327,6 @@ export default function FaqPage() {
               </table>
             </div>
           </Card>
-        </div>
-
-        {/* CTA Section */}
-        <div className="text-center mt-16 pt-12 border-t">
-          <h2 className="text-3xl font-bold mb-4">
-            ¿No encontraste tu respuesta?
-          </h2>
-          <p className="text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
-            Nuestro equipo está aquí para ayudarte. Contáctanos y te
-            responderemos en menos de 24 horas.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" asChild>
-              <Link href="/contact">
-                <MessageSquare className="mr-2 h-5 w-5" />
-                Contactar Soporte
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/auth/register">
-                <Users className="mr-2 h-5 w-5" />
-                Comenzar Gratis Ahora
-              </Link>
-            </Button>
-          </div>
         </div>
       </div>
     </div>

@@ -22,9 +22,9 @@ export default function HowItWorksPage() {
   const steps = [
     {
       number: "01",
-      title: "Publica tu servicio o busca profesionales",
+      title: "Busca profesionales especializados",
       description:
-        "Los profesionales crean perfiles detallados con su experiencia, y los clientes publican sus necesidades específicas.",
+        "Explora perfiles detallados por categoría y conecta con expertos que se ajusten a lo que necesitas.",
       icon: Search,
       color: "blue",
     },
@@ -32,7 +32,7 @@ export default function HowItWorksPage() {
       number: "02",
       title: "Conecta y revisa perfiles",
       description:
-        "Explora perfiles verificados, lee reseñas reales y conecta directamente con los profesionales que mejor se adapten a tus necesidades.",
+        "Revisa reseñas, experiencia y conversa por mensajes para validar disponibilidad y expectativas antes de contratar.",
       icon: UserCheck,
       color: "green",
     },
@@ -63,9 +63,9 @@ export default function HowItWorksPage() {
     },
     {
       icon: Shield,
-      title: "Perfiles Verificados",
+      title: "Confianza y transparencia",
       description:
-        "Todos los profesionales pasan por un proceso de verificación para garantizar calidad.",
+        "Consulta reseñas y conversa con el profesional para confirmar experiencia, disponibilidad y alcance.",
     },
     {
       icon: Star,
@@ -106,7 +106,7 @@ export default function HowItWorksPage() {
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
             ¿Cómo funciona{" "}
             <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
-              ServiciosPro?
+              Red Profesional?
             </span>
           </h1>
 
@@ -124,7 +124,11 @@ export default function HowItWorksPage() {
           <p className="text-lg text-foreground/60 text-center mb-16 max-w-3xl mx-auto">
             Únete a nuestra plataforma y comienza a conectar con profesionales o
             clientes en solo cuatro pasos simples
-          </p>          <div className="grid lg:grid-cols-2 gap-8">
+          </p>
+          <p className="text-sm text-foreground/60 text-center mb-8 max-w-2xl mx-auto">
+            Nota: hoy no habilitamos la publicación de necesidades y el filtro por ubicación está en desarrollo. Busca y contacta profesionales directamente; revisa la zona que cubren en su perfil y confirma por mensaje.
+          </p>
+          <div className="grid lg:grid-cols-2 gap-8">
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
@@ -202,7 +206,7 @@ export default function HowItWorksPage() {
         {/* Features Grid */}
         <div className="max-w-6xl mx-auto mb-20">
           <h2 className="text-3xl font-bold text-center mb-4">
-            ¿Por qué elegir ServiciosPro?
+            ¿Por qué elegir Red Profesional?
           </h2>
           <p className="text-lg text-foreground/70 text-center mb-12 max-w-3xl mx-auto">
             Ofrecemos una experiencia única que beneficia tanto a profesionales
@@ -304,11 +308,12 @@ export default function HowItWorksPage() {
                 <div>
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-blue-500" />
-                    Publica tu necesidad
+                    Busca por categoría
                   </h4>
                   <p className="text-sm text-foreground/70 mb-4">
-                    Describe qué necesitas y deja que los profesionales
-                    calificados te contacten con sus propuestas.
+                    Navega por categorías y revisa la zona que cubre cada
+                    profesional en su perfil; confirma por mensaje antes de
+                    acordar.
                   </p>
 
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
@@ -333,11 +338,11 @@ export default function HowItWorksPage() {
 
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-blue-500" />
-                    Paga directamente
+                    Coordina pagos
                   </h4>
                   <p className="text-sm text-foreground/70">
-                    Negocia el método de pago que prefieras directamente con el
-                    profesional, sin comisiones adicionales.
+                    Define el método de pago directamente con el profesional y
+                    conserva los comprobantes de forma segura.
                   </p>
                 </div>
               </div>
@@ -346,10 +351,10 @@ export default function HowItWorksPage() {
         </div>
         {/* CTA Section */}
         <div className="text-center">
-          <h2 className="text-3xl font-bold mb-4">¿Listo para comenzar?</h2>
-          <p className="text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold mb-3 text-foreground">¿Listo para comenzar?</h2>
+          <p className="text-xl text-foreground/85 mb-8 max-w-2xl mx-auto">
             Únete a miles de profesionales y clientes que ya están conectando en
-            ServiciosPro de forma completamente gratuita.
+            Red Profesional de forma completamente gratuita.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>

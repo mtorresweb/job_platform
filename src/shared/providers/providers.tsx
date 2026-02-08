@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { IconContext } from "@phosphor-icons/react";
 import { QueryProvider } from "./query-provider";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -15,14 +16,18 @@ export function Providers({ children }: ProvidersProps) {
     <SessionProvider>
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
+        defaultTheme="light"
         enableSystem
         disableTransitionOnChange
       >
-        <QueryProvider>
-          {children}
-          <Toaster position="top-right" richColors />
-        </QueryProvider>
+        <IconContext.Provider
+          value={{ size: 22, weight: "duotone", color: "currentColor" }}
+        >
+          <QueryProvider>
+            {children}
+            <Toaster position="top-right" richColors />
+          </QueryProvider>
+        </IconContext.Provider>
       </ThemeProvider>
     </SessionProvider>
   );
