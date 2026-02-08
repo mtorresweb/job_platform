@@ -31,6 +31,7 @@ export async function GET() {
             specialties: true,
             rating: true,
             reviewCount: true,
+            profileViewCount: true,
             isVerified: true,
             address: true,
             city: true,

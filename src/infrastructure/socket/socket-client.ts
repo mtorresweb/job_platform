@@ -90,7 +90,10 @@ export class SocketClient {
     }
 
     this.token = token || null;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // Initialize socket connection
     this.socket = io(baseUrl, {

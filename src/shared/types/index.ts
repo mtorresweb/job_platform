@@ -37,6 +37,7 @@ export interface Professional extends User {
   experience: number; // años de experiencia
   rating: number;
   reviewCount: number;
+  profileViewCount?: number;
   isVerified: boolean;
   specialties: string[];
   availability: Availability[];

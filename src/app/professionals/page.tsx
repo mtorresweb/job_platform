@@ -18,7 +18,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Star,
-  MapPin,
   CheckCircle,
   Search,
   Grid3X3,
@@ -31,16 +30,6 @@ import {
 import { useProfessionals, useSearchProfessionals } from "@/shared/hooks/useProfessionals";
 import { Professional } from "@/shared/utils/professionals-api";
 
-const LOCATIONS = [
-  "Todas las ciudades",
-  "Bogotá",
-  "Medellín",
-  "Cali",
-  "Barranquilla",
-  "Bucaramanga",
-  "Cartagena",
-];
-
 const SORT_OPTIONS = [
   { value: "rating", label: "Mejor calificados" },
   { value: "experience", label: "Más experiencia" },
@@ -50,7 +39,6 @@ const SORT_OPTIONS = [
 export default function ProfessionalsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("Todas las ciudades");
   const [sortBy, setSortBy] = useState("rating");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -109,108 +97,99 @@ export default function ProfessionalsPage() {
     };
 
     return (
-    <Card
-      className={`h-full hover:shadow-lg transition-shadow ${
-        isListView ? "flex flex-row" : ""
-      }`}
-    >
-      <div className={isListView ? "flex-shrink-0" : ""}>
-        <CardHeader className={`pb-3 ${isListView ? "p-4" : ""}`}>
-          <div
-            className={`flex items-start gap-3 ${
-              isListView ? "" : "flex-col items-center text-center"
-            }`}
-          >            <Avatar
-              className={`${
-                isListView ? "h-16 w-16" : "h-20 w-20"
-              } flex-shrink-0`}
+      <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
+        <div className={isListView ? "sm:flex sm:items-start sm:gap-6" : ""}>
+          <CardHeader className={`pb-3 ${isListView ? "p-4 sm:w-64 sm:border-r sm:border-border/60" : ""}`}>
+            <div
+              className={`flex items-start gap-3 ${
+                isListView ? "" : "flex-col items-center text-center"
+              }`}
             >
-              <AvatarImage src={professional.user.avatar || professional.avatar} />
-              <AvatarFallback>
-                {professional.user.name
-                  .split(" ")
-                  .map((n: string) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div className={`flex-1 ${isListView ? "" : "mt-3"}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <CardTitle className={`${isListView ? "text-lg" : "text-xl"}`}>
-                  {professional.user.name}
-                </CardTitle>
-                {professional.isVerified && (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                )}
-              </div>
-              <p className="text-sm text-foreground/70 font-medium">
-                {professional.specialties?.[0] || "Profesional verificado"}
-              </p>
-              <div
-                className={`flex items-center gap-4 mt-2 text-sm text-foreground/60 ${
-                  isListView ? "" : "justify-center"
-                }`}
+              <Avatar
+                className={`${
+                  isListView ? "h-16 w-16" : "h-20 w-20"
+                } flex-shrink-0`}
               >
-                <div className="flex items-center gap-1">
+                <AvatarImage src={professional.user.avatar || professional.avatar} />
+                <AvatarFallback>
+                  {professional.user.name
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className={`flex-1 ${isListView ? "" : "mt-3"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <CardTitle className={`${isListView ? "text-lg" : "text-xl"}`}>
+                    {professional.user.name}
+                  </CardTitle>
+                  {professional.isVerified && (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  )}
+                </div>
+                <p className="text-sm text-foreground/70 font-medium">
+                  {professional.specialties?.[0] || "Profesional verificado"}
+                </p>
+                <div className="flex items-center gap-2 mt-2 text-sm text-foreground/60">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                   <span>{professional.rating || 0}</span>
                   <span>({professional.reviewCount || 0})</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>{professional.city}</span>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className={`pt-0 flex-1 flex flex-col ${isListView ? "sm:p-4" : ""}`}>
+            <div className={`space-y-3 flex flex-col h-full`}>
+              <p className="text-sm text-foreground/80 line-clamp-2">
+                {professional.bio}
+              </p>
+
+              <div className="flex flex-wrap gap-1">
+                {professional.specialties.slice(0, 3).map((specialty: string, index: number) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {specialty}
+                  </Badge>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between text-sm">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-foreground/60">
+                    <Users className="h-3 w-3" />
+                    <span>{professional._count?.services || 0} servicios</span>
+                  </div>
+                  <div className="text-sm text-foreground/60">
+                    {professional.experience} años de experiencia
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-foreground/60">
+                    Verificado: {professional.isVerified ? 'Sí' : 'No'}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </CardHeader>
-      </div>
 
-      <CardContent className={`pt-0 ${isListView ? "flex-1 p-4" : ""}`}>        <div className={`space-y-3 ${isListView ? "flex flex-col h-full" : ""}`}>
-          <p className="text-sm text-foreground/80 line-clamp-2">
-            {professional.bio}
-          </p>
-
-          <div className="flex flex-wrap gap-1">
-            {professional.specialties.slice(0, 3).map((specialty: string, index: number) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                {specialty}
-              </Badge>
-            ))}
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between text-sm">            <div className="space-y-1">
-              <div className="flex items-center gap-1 text-foreground/60">
-                <Users className="h-3 w-3" />
-                <span>{professional._count?.services || 0} servicios</span>
-              </div>
-              <div className="text-sm text-foreground/60">
-                {professional.experience} años de experiencia
+              <div className="flex gap-2 mt-auto">
+                <Button asChild className="flex-1">
+                  <Link href={`/professionals/${professional.id}`}>Ver Perfil</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleContact}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Contactar
+                </Button>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-foreground/60">
-                Verificado: {professional.isVerified ? 'Sí' : 'No'}
-              </div>            </div>
-          </div>
-
-          <div className={`flex gap-2 ${isListView ? "mt-auto" : ""}`}>
-            <Button asChild className="flex-1">
-              <Link href={`/professionals/${professional.id}`}>Ver Perfil</Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleContact}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Contactar
-            </Button>
-          </div>
+          </CardContent>
         </div>
-      </CardContent>
-    </Card>
+      </Card>
     );
   };
 
@@ -240,7 +219,7 @@ export default function ProfessionalsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/50" />
                 <Input
-                  placeholder="Buscar profesionales por nombre, especialidad o servicio..."
+                  placeholder="Buscar profesionales por especialidad o servicio..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -249,22 +228,6 @@ export default function ProfessionalsPage() {
 
               {/* Filter Row */}
               <div className="flex flex-wrap gap-4 items-center">
-                <Select
-                  value={selectedLocation}
-                  onValueChange={setSelectedLocation}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Ubicación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LOCATIONS.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        {location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Ordenar por" />
@@ -348,7 +311,7 @@ export default function ProfessionalsPage() {
           <div
             className={
               viewMode === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr"
                 : "space-y-4"
             }
           >

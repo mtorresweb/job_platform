@@ -37,9 +37,9 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
         },
-        availability: {
-          orderBy: { dayOfWeek: 'asc' },
-        },
+              availability: {
+                orderBy: { dayOfWeek: 'asc' },
+              },
         _count: {
           select: {
             services: {

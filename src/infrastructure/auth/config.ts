@@ -47,6 +47,7 @@ interface DbAuthUser extends Omit<User, "professional"> {
     experience: number;
     rating: number;
     reviewCount: number;
+    profileViewCount: number;
     isVerified: boolean;
     specialties: string[];
     address?: string;
@@ -57,6 +58,40 @@ interface DbAuthUser extends Omit<User, "professional"> {
     latitude?: number;
     longitude?: number;
   } | null;
+}
+
+function detectPlatform(userAgent: string) {
+  const ua = (userAgent || "").toLowerCase();
+  if (ua.includes("android")) return "Android";
+  if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("ios")) return "iOS";
+  if (ua.includes("mac os") || ua.includes("macintosh")) return "macOS";
+  if (ua.includes("windows")) return "Windows";
+  if (ua.includes("linux")) return "Linux";
+  return "Web";
+}
+
+function extractClientInfo(req: any) {
+  const headers: Record<string, unknown> | undefined = req?.headers;
+  const getHeader = (name: string) => {
+    const value = (headers as any)?.get?.(name) || (headers as any)?.[name];
+    if (Array.isArray(value)) return value[0];
+    return value as string | undefined;
+  };
+
+  const ipRaw = getHeader("x-forwarded-for") || getHeader("x-real-ip") || (req as any)?.ip;
+  const ip = typeof ipRaw === "string" ? ipRaw.split(",")[0].trim() : "Desconocida";
+  const userAgent = getHeader("user-agent") || "No especificado";
+  const geo = (req as any)?.geo as { city?: string; region?: string; country?: string } | undefined;
+  const locationParts = [geo?.city, geo?.region, geo?.country].filter(Boolean);
+  const location = locationParts.length ? locationParts.join(", ") : "No disponible";
+
+  return {
+    ip,
+    userAgent,
+    location,
+    platform: detectPlatform(userAgent || ""),
+    timestamp: new Date().toISOString(),
+  };
 }
 
 export const authOptions: NextAuthOptions = {
@@ -79,7 +114,7 @@ export const authOptions: NextAuthOptions = {
         },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -108,6 +143,31 @@ export const authOptions: NextAuthOptions = {
 
         if (!passwordsMatch) {
           return null;
+        }
+
+        // Update login metadata and log platform usage (best-effort)
+        try {
+          const clientInfo = extractClientInfo(req as any);
+          await prisma.$transaction([
+            prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
+            prisma.activityLog.create({
+              data: {
+                userId: user.id,
+                action: "login",
+                resource: "auth",
+                details: {
+                  platform: clientInfo.platform,
+                  userAgent: clientInfo.userAgent,
+                  ip: clientInfo.ip,
+                  location: clientInfo.location,
+                  timestamp: clientInfo.timestamp,
+                  source: "nextauth-credentials",
+                },
+              },
+            }),
+          ]);
+        } catch (err) {
+          console.error("Error registrando login en ActivityLog", err);
         }
 
         // Remove sensitive data and map to session format
@@ -160,6 +220,7 @@ export const authOptions: NextAuthOptions = {
             experience: authUser.professional.experience ?? 0,
             rating: authUser.professional.rating ?? 0,
             reviewCount: authUser.professional.reviewCount ?? 0,
+            profileViewCount: authUser.professional.profileViewCount ?? 0,
             isVerified: authUser.professional.isVerified ?? false,
           };
         }
@@ -168,11 +229,24 @@ export const authOptions: NextAuthOptions = {
         // Keep token in sync for subsequent calls
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
-          select: { isActive: true, role: true },
+          select: { isActive: true, role: true, professional: true },
         });
         if (dbUser) {
           token.isActive = dbUser.isActive;
           token.role = dbUser.role;
+          if (dbUser.professional) {
+            token.professional = {
+              ...dbUser.professional,
+              specialties: dbUser.professional.specialties ?? [],
+              country: dbUser.professional.country ?? "Colombia",
+              bio: dbUser.professional.bio ?? "",
+              experience: dbUser.professional.experience ?? 0,
+              rating: dbUser.professional.rating ?? 0,
+              reviewCount: dbUser.professional.reviewCount ?? 0,
+              profileViewCount: dbUser.professional.profileViewCount ?? 0,
+              isVerified: dbUser.professional.isVerified ?? false,
+            };
+          }
         }
       }
       return token;

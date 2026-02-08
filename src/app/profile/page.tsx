@@ -40,7 +40,7 @@ export default function ProfilePage() {
   const isLoadingProfile = loadingUser && !user;
 
   const profileCompletion = useMemo(() => {
-    const fields = [user?.name, user?.phone, user?.city, user?.professional?.bio];
+    const fields = [user?.name, user?.phone, user?.professional?.bio];
     const filled = fields.filter(Boolean).length;
     const total = fields.length;
     return Math.round((filled / total) * 100);
@@ -479,8 +479,8 @@ export default function ProfilePage() {
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg border bg-muted/40 p-3">
-                    <p className="text-xs text-muted-foreground">Ciudad</p>
-                    <p className="font-medium">{user?.city || "Completa tu ciudad"}</p>
+                    <p className="text-xs text-muted-foreground">Ubicación</p>
+                    <p className="font-medium">Aguachica, Cesar (única zona disponible)</p>
                   </div>
                   <div className="rounded-lg border bg-muted/40 p-3">
                     <p className="text-xs text-muted-foreground">Teléfono</p>

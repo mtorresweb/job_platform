@@ -18,27 +18,117 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   professionalProfileSchema,
   updateProfileSchema,
 } from "@/shared/utils/validations";
 import type { ProfileUpdateData } from "@/shared/types";
 
-// Opciones de especialidades predefinidas
-const SPECIALTY_OPTIONS = [
-  { value: "plomeria", label: "Plomería" },
-  { value: "electricidad", label: "Electricidad" },
-  { value: "carpinteria", label: "Carpintería" },
-  { value: "pintura", label: "Pintura" },
-  { value: "jardineria", label: "Jardinería" },
-  { value: "tecnologia", label: "Tecnología" },
+// Opciones de especialidades predefinidas agrupadas
+const SPECIALTY_GROUPS = [
+  {
+    label: "Servicios varios",
+    options: [
+      { value: "plomeria", label: "Plomería" },
+      { value: "electricidad", label: "Electricidad" },
+      { value: "carpinteria", label: "Carpintería" },
+      { value: "pintura", label: "Pintura" },
+      { value: "jardineria", label: "Jardinería" },
+      { value: "limpieza", label: "Limpieza" },
+      { value: "mantenimiento-general", label: "Mantenimiento general" },
+      { value: "tecnologia", label: "Tecnología" },
+      { value: "construccion", label: "Construcción" },
+      { value: "albanileria", label: "Albañilería" },
+      { value: "cerrajeria", label: "Cerrajería" },
+      { value: "soldadura", label: "Soldadura" },
+      { value: "tapiceria", label: "Tapicería" },
+      { value: "montaje-mobiliario", label: "Montaje de mobiliario" },
+      { value: "fumigacion", label: "Fumigación" },
+      { value: "domotica", label: "Domótica" },
+      { value: "piscinas", label: "Mantenimiento de piscinas" },
+    ],
+  },
+  {
+    label: "Técnicos",
+    options: [
+      { value: "tecnico-electricista", label: "Técnico electricista" },
+      { value: "tecnico-refrigeracion", label: "Técnico en refrigeración" },
+      { value: "tecnico-automotriz", label: "Técnico automotriz" },
+      { value: "tecnico-sistemas", label: "Técnico en sistemas" },
+      { value: "tecnico-redes", label: "Técnico en redes" },
+      { value: "tecnico-cctv", label: "Técnico CCTV" },
+      { value: "tecnico-fibra", label: "Técnico en fibra óptica" },
+      { value: "tecnico-telefonia", label: "Técnico en telefonía" },
+      { value: "tecnico-ascensores", label: "Técnico de ascensores" },
+      { value: "tecnico-solar", label: "Técnico en paneles solares" },
+      { value: "tecnico-electrodomesticos", label: "Técnico en electrodomésticos" },
+    ],
+  },
+  {
+    label: "Tecnólogos",
+    options: [
+      { value: "tecnologo-mantenimiento", label: "Tecnólogo en mantenimiento" },
+      { value: "tecnologo-sistemas", label: "Tecnólogo en sistemas" },
+      { value: "tecnologo-logistica", label: "Tecnólogo en logística" },
+      { value: "tecnologo-salud-ocupacional", label: "Tecnólogo en salud ocupacional" },
+      { value: "tecnologo-multimedia", label: "Tecnólogo en multimedia" },
+      { value: "tecnologo-gastronomia", label: "Tecnólogo en gastronomía" },
+      { value: "tecnologo-finanzas", label: "Tecnólogo en finanzas" },
+      { value: "tecnologo-mercadeo", label: "Tecnólogo en mercadeo" },
+      { value: "tecnologo-desarrollo-web", label: "Tecnólogo en desarrollo web" },
+      { value: "tecnologo-redes", label: "Tecnólogo en redes" },
+    ],
+  },
+  {
+    label: "Pregrado",
+    options: [
+      { value: "pregrado-administracion", label: "Pregrado en Administración" },
+      { value: "pregrado-ingenieria", label: "Pregrado en Ingeniería" },
+      { value: "pregrado-contaduria", label: "Pregrado en Contaduría" },
+      { value: "pregrado-psicologia", label: "Pregrado en Psicología" },
+      { value: "pregrado-derecho", label: "Pregrado en Derecho" },
+      { value: "pregrado-enfermeria", label: "Pregrado en Enfermería" },
+      { value: "pregrado-arquitectura", label: "Pregrado en Arquitectura" },
+      { value: "pregrado-marketing", label: "Pregrado en Marketing" },
+      { value: "pregrado-turismo", label: "Pregrado en Turismo" },
+      { value: "pregrado-diseno", label: "Pregrado en Diseño gráfico" },
+      { value: "pregrado-economia", label: "Pregrado en Economía" },
+    ],
+  },
+  {
+    label: "Posgrado",
+    options: [
+      { value: "posgrado-mba", label: "Posgrado / MBA" },
+      { value: "posgrado-gerencia", label: "Especialización en Gerencia" },
+      { value: "posgrado-ingenieria", label: "Maestría en Ingeniería" },
+      { value: "posgrado-educacion", label: "Maestría en Educación" },
+      { value: "posgrado-doctorado", label: "Doctorado" },
+      { value: "posgrado-finanzas", label: "Maestría en Finanzas" },
+      { value: "posgrado-data", label: "Maestría en Ciencia de Datos" },
+      { value: "posgrado-marketing", label: "Maestría en Marketing Digital" },
+      { value: "posgrado-derecho", label: "Especialización en Derecho" },
+      { value: "posgrado-salud-publica", label: "Maestría en Salud Pública" },
+      { value: "posgrado-proyectos", label: "Especialización en Gestión de Proyectos" },
+    ],
+  },
+  {
+    label: "Certificaciones y títulos",
+    options: [
+      { value: "certificacion-pmp", label: "Certificación PMP" },
+      { value: "certificacion-scrum", label: "Scrum Master" },
+      { value: "certificacion-aws", label: "AWS Architect" },
+      { value: "certificacion-itil", label: "ITIL" },
+      { value: "certificacion-six-sigma", label: "Six Sigma" },
+      { value: "certificacion-ccna", label: "Cisco CCNA" },
+      { value: "certificacion-azure", label: "Azure Administrator" },
+      { value: "certificacion-gcp", label: "Google Cloud Architect" },
+      { value: "certificacion-cka", label: "Kubernetes CKA" },
+      { value: "certificacion-po", label: "Product Owner" },
+      { value: "certificacion-salesforce", label: "Salesforce Admin" },
+    ],
+  },
 ];
 
 export function UserProfileForm() {
@@ -57,10 +147,6 @@ export function UserProfileForm() {
       avatar: "",
       phone: "",
       address: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      country: "Colombia",
       ...(isProfessional
         ? {
             bio: "",
@@ -81,10 +167,6 @@ export function UserProfileForm() {
       avatar: currentUser.avatar || "",
       phone: currentUser.phone || "",
       address: currentUser.address || professional?.address || "",
-      city: currentUser.city || professional?.city || "",
-      state: currentUser.state || professional?.state || "",
-      zipCode: currentUser.zipCode || professional?.zipCode || "",
-      country: professional?.country || "Colombia",
       ...(isProfessional
         ? {
             bio: professional?.bio || "",
@@ -172,65 +254,7 @@ export function UserProfileForm() {
             )}
           />
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciudad</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Departamento</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="zipCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código postal</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>País</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Colombia" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {/* Ubicación fija: la plataforma opera sólo en Aguachica, Cesar */}
         </div>
 
         {/* Professional Fields */}
@@ -279,32 +303,41 @@ export function UserProfileForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Especialidades</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          const specialties = field.value || [];
-                          if (!specialties.includes(value)) {
-                            field.onChange([...specialties, value]);
-                          }
-                        }}
-                        value=""
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccionar especialidad" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent
-                          align="start"
-                          className="max-h-60 overflow-auto w-[--radix-select-trigger-width]"
-                        >
-                          {SPECIALTY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            <span>Buscar y agregar especialidades</span>
+                            <span className="text-xs text-muted-foreground">(múltiples)</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[360px] max-h-[320px] p-0" align="start">
+                          <Command className="h-[320px] flex flex-col">
+                            <CommandInput placeholder="Escribe para buscar" />
+                            <CommandList className="flex-1 overflow-y-auto">
+                              <CommandEmpty>Sin resultados</CommandEmpty>
+                              {SPECIALTY_GROUPS.map((group) => (
+                                <CommandGroup key={group.label} heading={group.label}>
+                                  {group.options.map((option) => (
+                                    <CommandItem
+                                      key={option.value}
+                                      value={option.label}
+                                      onSelect={() => {
+                                        const specialties = field.value || [];
+                                        if (!specialties.includes(option.label)) {
+                                          field.onChange([...specialties, option.label]);
+                                        }
+                                      }}
+                                    >
+                                      {option.label}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              ))}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {field.value?.map((specialty, index) => (
                           <Button
                             key={index}
@@ -320,6 +353,9 @@ export function UserProfileForm() {
                             <span className="ml-2">×</span>
                           </Button>
                         ))}
+                        {(!field.value || field.value.length === 0) && (
+                          <p className="text-sm text-muted-foreground">No has agregado especialidades aún.</p>
+                        )}
                       </div>
                       <FormMessage />
                     </FormItem>

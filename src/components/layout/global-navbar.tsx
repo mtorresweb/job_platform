@@ -62,6 +62,18 @@ export function GlobalNavbar() {
 
           <nav className="hidden md:flex items-center space-x-8">
             <Link
+              href="/about"
+              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+            >
+              Nosotros
+            </Link>
+            <Link
+              href="/how-it-works"
+              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+            >
+              Cómo funciona
+            </Link>
+            <Link
               href="/services"
               className="text-foreground/70 hover:text-primary transition-colors font-medium"
             >
@@ -72,18 +84,6 @@ export function GlobalNavbar() {
               className="text-foreground/70 hover:text-primary transition-colors font-medium"
             >
               Profesionales
-            </Link>
-            <Link
-              href="/how-it-works"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
-            >
-              Cómo funciona
-            </Link>
-            <Link
-              href="/about"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
-            >
-              Nosotros
             </Link>
           </nav>
 
@@ -177,21 +177,21 @@ export function GlobalNavbar() {
                         </Link>
                       </DropdownMenuItem>
                     </div>
+                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'PROFESSIONAL') && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/activity" className="cursor-pointer">
+                          <Activity className="mr-2 h-4 w-4" />
+                          Actividad
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {currentUser?.role === 'ADMIN' && (
-                      <>
-                        <DropdownMenuItem asChild>
-                          <Link href="/activity" className="cursor-pointer">
-                            <Activity className="mr-2 h-4 w-4" />
-                            Actividad
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin/users" className="cursor-pointer">
-                            <Users className="mr-2 h-4 w-4" />
-                            Administrar usuarios
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/users" className="cursor-pointer">
+                          <Users className="mr-2 h-4 w-4" />
+                          Administrar usuarios
+                        </Link>
+                      </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
                       <Link href="/messages" className="cursor-pointer flex justify-between items-center">
@@ -342,6 +342,20 @@ export function GlobalNavbar() {
               )}
               
               <Link
+                href="/about"
+                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Nosotros
+              </Link>
+              <Link
+                href="/how-it-works"
+                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Cómo funciona
+              </Link>
+              <Link
                 href="/services"
                 className="text-foreground/70 hover:text-primary transition-colors font-medium"
                 onClick={() => setMobileMenuOpen(false)}
@@ -354,20 +368,6 @@ export function GlobalNavbar() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Profesionales
-              </Link>
-              <Link
-                href="/how-it-works"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Cómo funciona
-              </Link>
-              <Link
-                href="/about"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Nosotros
               </Link>
               {!isAuthenticated && (
                 <Link

@@ -94,10 +94,8 @@ export async function POST(request: NextRequest) {
     const targetProfessionalId = isCurrentProfessional ? currentUser.id : targetUser.id;
 
     if (clientId === targetProfessionalId) {
-      return NextResponse.json(
-        { success: false, message: 'No puedes iniciar una conversación contigo mismo' },
-        { status: 400 }
-      );
+      // Evita error cuando la URL trae tu propio id; simplemente responde ok sin crear
+      return NextResponse.json({ success: true, message: 'Conversación no creada: mismo usuario' });
     }
 
     const includeRelations = {

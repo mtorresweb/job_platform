@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useProfessional } from "@/shared/hooks/useProfessionals";
 import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
+import { apiClient } from "@/shared/utils/api-client";
 import {
   ArrowLeft,
   Star,
@@ -79,6 +80,13 @@ export default function ProfessionalProfilePage() {
     // Lleva al flujo de edición en el perfil privado
     window.location.href = `/profile?editService=${serviceId}`;
   };
+
+  useEffect(() => {
+    if (!professional?.id || isOwner) return;
+    apiClient.post("/analytics/profile-view", { professionalId: professional.id }).catch((err) => {
+      console.error("Error registrando vista de perfil", err);
+    });
+  }, [professional?.id, isOwner]);
 
   if (isLoading) {
     return (

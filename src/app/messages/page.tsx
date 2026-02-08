@@ -72,7 +72,12 @@ export default function MessagesPage() {
   // Auto-open conversation when navigated with query param
   useEffect(() => {
     const professionalId = searchParams.get("conversationWith") || searchParams.get("professionalId");
+    const currentUserId = userRole.user?.id;
     if (!professionalId || selectedConversation || createConversationMutation.isPending || autoAttempted) return;
+    if (currentUserId && professionalId === currentUserId) {
+      setAutoAttempted(true);
+      return;
+    }
 
     setAutoAttempted(true);
     createConversationMutation

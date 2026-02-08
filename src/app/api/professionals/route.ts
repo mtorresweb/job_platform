@@ -22,9 +22,18 @@ export async function GET(request: NextRequest) {
 
     if (query) {
       where.OR = [
-        { bio: { contains: query, mode: 'insensitive' } },
         { specialties: { has: query } },
-        { user: { name: { contains: query, mode: 'insensitive' } } },
+        {
+          services: {
+            some: {
+              OR: [
+                { title: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } },
+              ],
+              isActive: true,
+            },
+          },
+        },
       ];
     }
 

@@ -31,7 +31,6 @@ import { ServiceSearchParams } from "@/shared/utils/services-api";
 export default function ServicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedLocation, setSelectedLocation] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState("rating");
 
@@ -44,7 +43,6 @@ export default function ServicesPage() {
     query: searchTerm.length > 0 ? searchTerm : undefined,
     filters: {
       categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
-      location: selectedLocation !== "all" ? selectedLocation : undefined,
     },
   };
 
@@ -145,22 +143,6 @@ export default function ServicesPage() {
                         {category.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={selectedLocation}
-                  onValueChange={setSelectedLocation}
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Ubicación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                    <SelectItem value="bogota">Bogotá, Colombia</SelectItem>
-                    <SelectItem value="medellin">Medellín, Colombia</SelectItem>
-                    <SelectItem value="cali">Cali, Colombia</SelectItem>
-                    <SelectItem value="barranquilla">Barranquilla, Colombia</SelectItem>
-                    <SelectItem value="cartagena">Cartagena, Colombia</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

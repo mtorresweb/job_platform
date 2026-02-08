@@ -28,6 +28,8 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useUserBookings, useProfessionalBookings, useAllBookings } from "@/shared/hooks/useBookings";
 import { useReviews } from "@/shared/hooks/useReviews";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
+import { apiClient } from "@/shared/utils/api-client";
+import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 
 // Define activity types for unified display
 interface ActivityItem {
@@ -43,14 +45,23 @@ interface ActivityItem {
   metadata?: Record<string, unknown>;
 }
 
+type PlatformUsage = {
+  total: number;
+  platforms: { platform: string; count: number; percentage: number }[];
+};
+
 export default function ActivityPage() {
   const [filter, setFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showDebug, setShowDebug] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [platformUsage, setPlatformUsage] = useState<PlatformUsage>({ total: 0, platforms: [] });
+  const [loadingPlatformUsage, setLoadingPlatformUsage] = useState(false);
+  const [platformUsageError, setPlatformUsageError] = useState<string | null>(null);
   // Get current user to determine role
   const { isProfessional, isAdmin } = useUserRole();
+  const { data: currentUser } = useCurrentUser({ enabled: isProfessional });
   // Fetch data from real APIs
   const { data: notificationsData, isLoading: isLoadingNotifications, error: notificationsError } = useNotifications({
     limit: 50,
@@ -77,6 +88,24 @@ export default function ActivityPage() {
     limit: 50,
     page: 1,
   });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    setLoadingPlatformUsage(true);
+    setPlatformUsageError(null);
+    apiClient
+      .get<PlatformUsage>("/analytics/platform-usage")
+      .then((res) => {
+        const payload = res?.data || { total: 0, platforms: [] };
+        setPlatformUsage(payload);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        setPlatformUsageError(message);
+        console.error("Error fetching platform usage", err);
+      })
+      .finally(() => setLoadingPlatformUsage(false));
+  }, [isAdmin]);
 
   const notificationItems = useMemo(() => {
     console.log("[activity] raw notificationsData", notificationsData);
@@ -248,6 +277,22 @@ export default function ActivityPage() {
     };
   }, [notificationItems, bookingsList, activities.length]);
 
+  const professionalStats = useMemo(() => {
+    if (!isProfessional) return null;
+    const completed = bookingsList.filter((b) => b.status?.toUpperCase?.() === "COMPLETED").length;
+    const cancelled = bookingsList.filter((b) => b.status?.toUpperCase?.() === "CANCELLED").length;
+    const rescheduled = bookingsList.filter((b) => {
+      const updatedAt = b.updatedAt ? new Date(b.updatedAt) : null;
+      const createdAt = b.createdAt ? new Date(b.createdAt) : null;
+      const notes = (b.notes || "").toLowerCase();
+      const hasRescheduleKeyword = notes.includes("reagend") || notes.includes("reprogram");
+      const hasTimestampChange = updatedAt && createdAt && updatedAt.getTime() !== createdAt.getTime();
+      return hasTimestampChange || hasRescheduleKeyword;
+    }).length;
+    const profileViews = currentUser?.professional?.profileViewCount ?? 0;
+    return { completed, cancelled, rescheduled, profileViews };
+  }, [isProfessional, bookingsList, currentUser?.professional?.profileViewCount]);
+
   // Calculate stats from real data
     // Removed analytics weekly stats for simplified UI
 
@@ -401,6 +446,95 @@ export default function ActivityPage() {
           Revisa tu historial de actividades, filtros y estadísticas en un solo lugar
         </p>
       </div>
+
+      {isProfessional && professionalStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Servicios completados</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{professionalStats.completed}</div>
+              <Badge variant="secondary" className="text-green-700 bg-green-100">OK</Badge>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Cancelados</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{professionalStats.cancelled}</div>
+              <Badge variant="secondary" className="text-red-700 bg-red-100">Baja</Badge>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Reprogramados</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{professionalStats.rescheduled}</div>
+              <Badge variant="secondary" className="text-amber-700 bg-amber-100">Cambio</Badge>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Vistas de perfil</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{professionalStats.profileViews}</div>
+              <Badge variant="secondary" className="text-blue-700 bg-blue-100">Visitas</Badge>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {isAdmin && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Plataformas más usadas</CardTitle>
+              <Badge variant="outline">Inicios de sesión</Badge>
+            </div>
+            <CardDescription>Distribución por plataforma (últimos registros)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingPlatformUsage && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Cargando...</span>
+              </div>
+            )}
+
+            {platformUsageError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <span>{platformUsageError}</span>
+              </div>
+            )}
+
+            {!loadingPlatformUsage && !platformUsageError && platformUsage.platforms.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aún no hay datos de plataformas.</p>
+            )}
+
+            {!loadingPlatformUsage && !platformUsageError && platformUsage.platforms.length > 0 && (
+              <div className="space-y-2">
+                {platformUsage.platforms.map((item) => (
+                  <div key={item.platform} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span>{item.platform}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span>{item.count}</span>
+                      <span className="text-xs">{Number(item.percentage).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
         {/* Debug panel toggle */}
         <div className="mb-4 flex justify-end">

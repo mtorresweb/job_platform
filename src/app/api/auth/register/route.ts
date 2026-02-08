@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { prisma } from "@/infrastructure/database/prisma";
 import bcrypt from "bcryptjs";
 import { UserRole } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { sendMail } from "@/shared/utils/email";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export async function POST(req: NextRequest) {
   try {
     const { email, password, name, role } = await req.json();
 
@@ -63,6 +67,28 @@ export async function POST(req: Request) {
       "credentials",
       email,
     );
+
+    // Send welcome email (non-blocking failure)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    const welcomeLink = `${baseUrl}`;
+    try {
+      await sendMail(
+        email,
+        "¡Bienvenido a ServiciosPro!",
+        `
+          <h2>Hola ${name}, ¡bienvenido a ServiciosPro!</h2>
+          <p>Tu cuenta se creó correctamente. Ya puedes iniciar sesión y completar tu perfil para recibir mejores oportunidades.</p>
+          <p>
+            <a href="${welcomeLink}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
+              Ir a ServiciosPro
+            </a>
+          </p>
+          <p>Si no creaste esta cuenta, ignora este mensaje.</p>
+        `,
+      );
+    } catch (err) {
+      console.error("Error enviando correo de bienvenida", err);
+    }
 
     return NextResponse.json({
       user,

@@ -8,6 +8,7 @@ export interface Professional {
   experience: number;
   rating: number;
   reviewCount: number;
+  profileViewCount?: number;
   isVerified: boolean;
   specialties: string[];
   hourlyRate: number;
