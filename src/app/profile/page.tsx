@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -31,7 +31,7 @@ import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 import { fileUploadService, FileCategory, validateFile } from "@/shared/utils/file-upload";
 import { FILE_CONFIG } from "@/shared/constants";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { data: user, isLoading: loadingUser } = useCurrentUser();
   const { isProfessional: sessionIsProfessional } = useUserRole();
   const isProfessional = sessionIsProfessional || user?.role === "PROFESSIONAL";
@@ -676,5 +676,17 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        Cargando perfil...
+      </div>
+    }>
+      <ProfilePageContent />
+    </Suspense>
   );
 }

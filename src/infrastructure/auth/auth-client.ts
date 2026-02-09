@@ -59,5 +59,6 @@ const authClientInstance = createAuthClient({
 // Export auth methods
 export const { useSession, signIn, signUp, signOut } = authClientInstance;
 
-// Re-export the useUserRole hook
+// Re-export hooks for convenience
 export { useUserRole } from "./useUserRole";
+export { useCurrentUser } from "@/shared/hooks/useCurrentUser";

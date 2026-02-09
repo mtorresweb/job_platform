@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConversations, useMessages, useSendMessage, useMarkConversationAsRead, useCreateConversation } from "@/shared/hooks/useMessages";
 import { Conversation, MessageType } from "@/shared/utils/messages-api";
@@ -31,7 +31,7 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -480,5 +480,17 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        Cargando mensajes...
+      </div>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   );
 }
