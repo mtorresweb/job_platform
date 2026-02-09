@@ -196,11 +196,6 @@ export default function BookContent() {
                 <Badge variant="outline" className="border-white/30 text-white">
                   {service.category?.name || "Servicio"}
                 </Badge>
-                {service.professional?.isVerified && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-emerald-100 text-xs font-medium">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Profesional verificado
-                  </span>
-                )}
                 <span className="inline-flex items-center gap-1 text-xs text-slate-100">
                   <Clock className="h-3.5 w-3.5" />
                   {Math.floor(service.duration / 60)}h {service.duration % 60}m
@@ -374,7 +369,7 @@ export default function BookContent() {
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>Ubicación: {service.professional?.city || "No especificada"}</span>
+                    <span>Ubicación: Aguachica, Cesar</span>
                   </div>
                   <Separator />
                   <div className="text-foreground/80 text-sm leading-relaxed line-clamp-4">
@@ -401,10 +396,7 @@ export default function BookContent() {
                     <span>Precio</span>
                     <span className="font-semibold">{service.price ? `$${service.price.toFixed(2)}` : "A convenir"}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span>Estado</span>
-                    <Badge variant="outline">{service.professional?.isVerified ? "Verificado" : "Pendiente"}</Badge>
-                  </div>
+                  {/* Estado removed to avoid verification messaging */}
                 </CardContent>
               </Card>
             </div>

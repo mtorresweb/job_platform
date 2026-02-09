@@ -87,25 +87,38 @@ class ServicesApiService {
     total: number;
     hasMore: boolean;
   }> {
-    const response = await apiClient.get<{
-      services: Service[];
-      total: number;
-      hasMore: boolean;
-    }>(API_ENDPOINTS.SERVICES.BASE, params as Record<string, unknown>);
-    return response.data;
+    const response = await apiClient.get<any>(API_ENDPOINTS.SERVICES.BASE, {
+      ...params,
+      q: params.query,
+    } as Record<string, unknown>);
+
+    const payload = (response as any)?.data ?? response;
+    const services =
+      payload?.services ??
+      payload?.results ??
+      payload?.items ??
+      payload?.data?.services ??
+      [];
+
+    const total =
+      payload?.total ??
+      payload?.data?.total ??
+      (Array.isArray(services) ? services.length : 0);
+
+    const hasMore =
+      payload?.hasMore ??
+      payload?.data?.hasMore ??
+      false;
+
+    return { services, total, hasMore };
   }
-  // Search services
+  // Search services by title/description/tags using same endpoint with query
   async searchServices(params: ServiceSearchParams): Promise<{
     services: Service[];
     total: number;
     hasMore: boolean;
   }> {
-    const response = await apiClient.get<{
-      services: Service[];
-      total: number;
-      hasMore: boolean;
-    }>(API_ENDPOINTS.SERVICES.SEARCH, params as Record<string, unknown>);
-    return response.data;
+    return this.getServices(params);
   }
 
   // Get featured services

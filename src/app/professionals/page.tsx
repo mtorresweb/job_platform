@@ -33,7 +33,6 @@ import { Professional } from "@/shared/utils/professionals-api";
 const SORT_OPTIONS = [
   { value: "rating", label: "Mejor calificados" },
   { value: "experience", label: "Más experiencia" },
-  { value: "recent", label: "Más recientes" },
 ];
 
 const translateErrorMessage = (message?: string) => {

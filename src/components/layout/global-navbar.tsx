@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
@@ -31,6 +32,9 @@ export function GlobalNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: unreadNotificationCount = 0 } = useUnreadNotificationCount();
   const { data: unreadMessagesData } = useUnreadCount();
+  const pathname = usePathname();
+  const isActivePath = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
   
   const unreadMessageCount = typeof unreadMessagesData === 'object' && unreadMessagesData !== null && 'total' in unreadMessagesData 
     ? unreadMessagesData.total 
@@ -63,25 +67,41 @@ export function GlobalNavbar() {
           <nav className="hidden md:flex items-center space-x-8">
             <Link
               href="/about"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+              className={`transition-colors font-medium ${
+                isActivePath("/about")
+                  ? "text-primary"
+                  : "text-foreground/70 hover:text-primary"
+              }`}
             >
               Nosotros
             </Link>
             <Link
               href="/how-it-works"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+              className={`transition-colors font-medium ${
+                isActivePath("/how-it-works")
+                  ? "text-primary"
+                  : "text-foreground/70 hover:text-primary"
+              }`}
             >
               Cómo funciona
             </Link>
             <Link
               href="/services"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+              className={`transition-colors font-medium ${
+                isActivePath("/services")
+                  ? "text-primary"
+                  : "text-foreground/70 hover:text-primary"
+              }`}
             >
               Servicios
             </Link>
             <Link
               href="/professionals"
-              className="text-foreground/70 hover:text-primary transition-colors font-medium"
+              className={`transition-colors font-medium ${
+                isActivePath("/professionals")
+                  ? "text-primary"
+                  : "text-foreground/70 hover:text-primary"
+              }`}
             >
               Profesionales
             </Link>
@@ -211,7 +231,7 @@ export function GlobalNavbar() {
                       className="cursor-pointer text-destructive focus:text-destructive"
                       onClick={(e) => {
                         e.preventDefault();
-                        signOut();
+                        signOut({ callbackUrl: "/" });
                       }}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Salir
@@ -343,28 +363,44 @@ export function GlobalNavbar() {
               
               <Link
                 href="/about"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                className={`transition-colors font-medium ${
+                  isActivePath("/about")
+                    ? "text-primary"
+                    : "text-foreground/70 hover:text-primary"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Nosotros
               </Link>
               <Link
                 href="/how-it-works"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                className={`transition-colors font-medium ${
+                  isActivePath("/how-it-works")
+                    ? "text-primary"
+                    : "text-foreground/70 hover:text-primary"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Cómo funciona
               </Link>
               <Link
                 href="/services"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                className={`transition-colors font-medium ${
+                  isActivePath("/services")
+                    ? "text-primary"
+                    : "text-foreground/70 hover:text-primary"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Servicios
               </Link>
               <Link
                 href="/professionals"
-                className="text-foreground/70 hover:text-primary transition-colors font-medium"
+                className={`transition-colors font-medium ${
+                  isActivePath("/professionals")
+                    ? "text-primary"
+                    : "text-foreground/70 hover:text-primary"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Profesionales

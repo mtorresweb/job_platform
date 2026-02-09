@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,35 +25,37 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
-import { useServices, useServiceCategories, useSearchServices } from "@/shared/hooks/useServices";
+import { useServices } from "@/shared/hooks/useServices";
 import { ServiceSearchParams } from "@/shared/utils/services-api";
 
 export default function ServicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState("rating");
 
-  // Fetch categories
-  const { data: categoriesData, isLoading: isLoadingCategories } = useServiceCategories();
-  const categories = categoriesData || [];
+  // Debounce search to avoid flicker/reloads (slower to allow typing)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 700);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Build search params
-  const searchParams: ServiceSearchParams = {
-    query: searchTerm.length > 0 ? searchTerm : undefined,
-    filters: {
-      categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
-    },
+  const searchParams: ServiceSearchParams = useMemo(
+    () => ({ query: debouncedSearch || undefined }),
+    [debouncedSearch]
+  );
+
+  // Fetch services (supports query); keeps previous data during refetch
+  const { data: servicesData, isLoading: isLoadingServices, isFetching } = useServices(searchParams);
+
+  const normalizeServices = (payload: any) => {
+    if (!payload) return [];
+    const data = payload.data ?? payload;
+    return data.services ?? data.results ?? data.items ?? [];
   };
 
-  // Fetch services based on search term
-  const { data: searchData, isLoading: isSearching } = useSearchServices(searchParams);
-  const { data: servicesData, isLoading: isLoadingServices } = useServices(searchParams);
-
-  // Use search results if there's a search term, otherwise use regular services
-  const data = searchTerm.length > 0 ? searchData : servicesData;
-  const services = data?.services || [];
-  const isLoading = searchTerm.length > 0 ? isSearching : isLoadingServices;
+  const services = normalizeServices(servicesData);
+  const isInitialLoading = debouncedSearch.length === 0 && isLoadingServices && !servicesData;
 
   // Sort services
   const sortedServices = [...services].sort((a, b) => {
@@ -67,8 +69,8 @@ export default function ServicesPage() {
     }
   });
 
-  // Loading state
-  if (isLoading || isLoadingCategories) {
+  // Loading state for first paint
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-background">
         <section className="bg-gradient-to-r from-primary/10 via-primary/5 to-background py-16">
@@ -77,9 +79,7 @@ export default function ServicesPage() {
               <Skeleton className="h-12 w-96 mx-auto" />
               <Skeleton className="h-6 w-80 mx-auto" />
               <div className="bg-white dark:bg-card rounded-2xl p-6 shadow-lg border">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Skeleton className="h-12 md:col-span-2" />
-                  <Skeleton className="h-12" />
+                <div className="grid grid-cols-1 gap-4">
                   <Skeleton className="h-12" />
                 </div>
               </div>
@@ -118,33 +118,16 @@ export default function ServicesPage() {
 
             {/* Search Bar */}
             <div className="bg-white dark:bg-card rounded-2xl p-6 shadow-lg border">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                    <Input
-                      placeholder="¿Qué servicio necesitas?"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 h-12 text-lg"
-                    />
-                  </div>
-                </div>                <Select
-                  value={selectedCategory}
-                  onValueChange={setSelectedCategory}
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las categorías</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                  <Input
+                    placeholder="¿Qué servicio necesitas?"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-12 text-lg"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -158,7 +141,9 @@ export default function ServicesPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h2 className="text-2xl font-bold mb-2">
-                {sortedServices.length} servicios encontrados
+                {isFetching && sortedServices.length === 0
+                  ? "Buscando servicios..."
+                  : `${sortedServices.length} servicios encontrados`}
               </h2>
               <p className="text-foreground/60">
                 Profesionales verificados en tu área
@@ -362,7 +347,7 @@ export default function ServicesPage() {
           </div>
 
           {/* No Results */}
-          {sortedServices.length === 0 && (
+          {sortedServices.length === 0 && !isFetching && (
             <div className="text-center py-16">
               <div className="mb-6">
                 <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -370,15 +355,12 @@ export default function ServicesPage() {
                   No se encontraron servicios
                 </h3>
                 <p className="text-foreground/60 max-w-md mx-auto">
-                  Intenta ajustar tus filtros de búsqueda o explora otras
-                  categorías.
+                  Intenta ajustar tu búsqueda y prueba con otros términos.
                 </p>
               </div>              <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("");
-                  setSelectedCategory("all");
-                  setSelectedLocation("all");
                 }}
               >
                 Limpiar filtros

@@ -25,11 +25,14 @@ import {
 } from "lucide-react";
 import { useService } from "@/shared/hooks/useServices";
 import { useServiceReviews } from "@/shared/hooks/useReviews";
+import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 
 export default function ServiceDetailPage() {
   const params = useParams();
-  const serviceId = params?.id as string;    const { data: service, isLoading: isLoadingService, error: serviceError } = useService(serviceId);
+  const serviceId = params?.id as string;
+  const { data: service, isLoading: isLoadingService, error: serviceError } = useService(serviceId);
   const { data: reviewsData } = useServiceReviews(serviceId);
+  const { data: currentUser } = useCurrentUser();
   
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -72,7 +75,17 @@ export default function ServiceDetailPage() {
       </div>
     );
   }
-  const reviews = reviewsData?.reviews || [];  const handleContactProvider = () => {
+  const reviews = reviewsData?.reviews || [];
+  const formattedPrice = Number.isFinite(service?.price)
+    ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(Number(service.price))
+    : "A convenir";
+  const isOwner = Boolean(
+    currentUser &&
+    service?.professional &&
+    (currentUser.professional?.id === service.professional.id || currentUser.id === service.professional.user?.id)
+  );
+
+  const handleContactProvider = () => {
     if (!service?.professional?.user) return;
     // Redirect to messaging page with professional
     window.location.href = `/messages/new?professionalId=${service.professional.id}&name=${encodeURIComponent(service.professional.user.name)}&serviceId=${service.id}`;
@@ -147,7 +160,7 @@ export default function ServiceDetailPage() {
                 </div>
                 <div className="flex items-center gap-1 text-foreground/60">
                   <MapPin className="h-4 w-4" />
-                  <span>Ubicación no especificada</span>
+                  <span>Aguachica, Cesar</span>
                 </div>
               </div>
             </div>
@@ -390,17 +403,20 @@ export default function ServiceDetailPage() {
                 <div className="space-y-1 text-sm text-foreground/60">
                   <div>Duración: {Math.floor(service.duration / 60)}h {service.duration % 60}min</div>
                   <div>Categoría: {service.category?.name}</div>
+                  <div>Precio: {formattedPrice}</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button
-                  onClick={handleBookService}
-                  className="w-full"
-                  size="lg"
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Reservar Servicio
-                </Button>
+                {!isOwner && (
+                  <Button
+                    onClick={handleBookService}
+                    className="w-full"
+                    size="lg"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Reservar Servicio
+                  </Button>
+                )}
                 <Button
                   onClick={handleContactProvider}
                   variant="outline"
@@ -464,7 +480,7 @@ export default function ServiceDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-foreground/60" />
-                    <span>Ubicación: No especificada</span>
+                    <span>Ubicación: Aguachica, Cesar</span>
                   </div>
                 </div>
 

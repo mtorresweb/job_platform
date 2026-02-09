@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/infrastructure/auth/auth';
+import { getToken } from 'next-auth/jwt';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/infrastructure/auth/config';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { FILE_CONFIG } from '@/shared/constants';
@@ -10,12 +13,29 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    // Check authentication: prefer better-auth, fallback to NextAuth
+    let userId: string | null = null;
 
-    if (!session?.user) {
+    const betterSession = await auth.api.getSession({ headers: request.headers });
+    if (betterSession?.user?.id) {
+      userId = betterSession.user.id;
+    }
+
+    if (!userId) {
+      const nextAuthSession = await getServerSession(authOptions);
+      if (nextAuthSession?.user?.id) {
+        userId = nextAuthSession.user.id;
+      }
+    }
+
+    if (!userId) {
+      const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+      if (token?.sub) {
+        userId = String(token.sub);
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: 'No autorizado' },
         { status: 401 }

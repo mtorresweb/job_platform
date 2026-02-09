@@ -444,7 +444,7 @@ export default function ProfessionalProfilePage() {
                     <CardContent className="space-y-3">
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-foreground/60" />
-                        <span>{professional.city}, {professional.state}</span>
+                        <span>Aguachica, Cesar</span>
                       </div>
                       {professional.address && (
                         <div className="text-sm text-foreground/70">

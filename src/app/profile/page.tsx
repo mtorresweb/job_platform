@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, PlusCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
+import { fileUploadService, FileCategory, validateFile } from "@/shared/utils/file-upload";
+import { FILE_CONFIG } from "@/shared/constants";
 
 export default function ProfilePage() {
   const { data: user, isLoading: loadingUser } = useCurrentUser();
@@ -46,16 +48,29 @@ export default function ProfilePage() {
     return Math.round((filled / total) * 100);
   }, [user]);
 
-  const [serviceForm, setServiceForm] = useState({
+  const emptyServiceForm = {
     title: "",
     description: "",
     categoryId: "",
     price: 0,
     duration: 60,
     tags: "",
-    images: "",
-  });
+    images: [] as string[],
+  };
+
+  const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [pendingServiceFiles, setPendingServiceFiles] = useState<File[]>([]);
+  const [pendingServicePreviews, setPendingServicePreviews] = useState<string[]>([]);
+  const [serviceUploadError, setServiceUploadError] = useState<string | null>(null);
+  const [serviceUploading, setServiceUploading] = useState(false);
+
+  const toAbsoluteUrl = (url: string) => {
+    if (!url) return "";
+    if (/^https?:\/\//i.test(url)) return url;
+    const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "";
+    return origin ? `${origin}${url.startsWith('/') ? url : `/${url}`}` : url;
+  };
 
   const { data: categories, isLoading: loadingCategories } = useServiceCategories();
   const { data: servicesData, isLoading: loadingServices } = useProfessionalServices(professionalId, { limit: 20 });
@@ -75,8 +90,11 @@ export default function ProfilePage() {
         price: target.price ?? 0,
         duration: target.duration || 60,
         tags: (target.tags || []).join(", "),
-        images: (target.images || []).join(", "),
+        images: target.images || [],
       });
+      setPendingServiceFiles([]);
+      setPendingServicePreviews([]);
+      setServiceUploadError(null);
     }
   }, [searchParams, servicesData]);
 
@@ -119,12 +137,29 @@ export default function ProfilePage() {
       .filter(Boolean)
       .slice(0, 10);
 
-    const images = serviceForm.images
-      .split(",")
-      .map((img) => img.trim())
-      .filter(Boolean);
+    let images = [...serviceForm.images];
 
     try {
+      if (pendingServiceFiles.length) {
+        setServiceUploadError(null);
+        setServiceUploading(true);
+        const uploaded = await fileUploadService.uploadFiles(pendingServiceFiles, FileCategory.SERVICE_IMAGE, undefined, {
+          folder: "services",
+          maxWidth: 1600,
+          maxHeight: 1200,
+          quality: 85,
+        });
+        images = [...images, ...uploaded.map((u) => u.url)];
+        setPendingServiceFiles([]);
+        pendingServicePreviews.forEach((url) => URL.revokeObjectURL(url));
+        setPendingServicePreviews([]);
+      }
+
+      images = images
+        .map((img) => toAbsoluteUrl(img))
+        .filter(Boolean)
+        .slice(0, FILE_CONFIG.maxImagesPerService);
+
       if (editingServiceId) {
         await updateServiceMutation.mutateAsync({
           id: editingServiceId,
@@ -155,11 +190,17 @@ export default function ProfilePage() {
         price: 0,
         duration: 60,
         tags: "",
-        images: "",
+        images: [],
       });
+      setPendingServiceFiles([]);
+      pendingServicePreviews.forEach((url) => URL.revokeObjectURL(url));
+      setPendingServicePreviews([]);
       setEditingServiceId(null);
     } catch (error) {
       console.error(error);
+      setServiceUploadError(error instanceof Error ? error.message : "No se pudo guardar el servicio");
+    } finally {
+      setServiceUploading(false);
     }
   };
 
@@ -347,13 +388,112 @@ export default function ProfilePage() {
                           placeholder="urgente, instalación, hogar"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Imágenes (URLs, coma)</label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          Imágenes del servicio
+                        </label>
+                        <span className="text-xs text-muted-foreground">PNG/JPEG/WebP, máx 5MB, hasta {FILE_CONFIG.maxImagesPerService}.</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
                         <Input
-                          value={serviceForm.images}
-                          onChange={(e) => setServiceForm((prev) => ({ ...prev, images: e.target.value }))}
-                          placeholder="https://... , https://..."
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          multiple
+                          className="hidden"
+                          id="service-images-input"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (!files.length) return;
+
+                            const currentCount = serviceForm.images.length + pendingServiceFiles.length;
+                            if (currentCount + files.length > FILE_CONFIG.maxImagesPerService) {
+                              setServiceUploadError(`Máximo ${FILE_CONFIG.maxImagesPerService} imágenes por servicio.`);
+                              e.target.value = "";
+                              return;
+                            }
+
+                            const validFiles: File[] = [];
+                            for (const f of files) {
+                              const validation = validateFile(f, FileCategory.SERVICE_IMAGE);
+                              if (!validation.isValid) {
+                                setServiceUploadError(validation.error || "Archivo no válido");
+                                continue;
+                              }
+                              validFiles.push(f);
+                            }
+
+                            if (!validFiles.length) {
+                              e.target.value = "";
+                              return;
+                            }
+
+                            const newPreviews = validFiles.map((f) => URL.createObjectURL(f));
+                            setPendingServiceFiles((prev) => [...prev, ...validFiles]);
+                            setPendingServicePreviews((prev) => [...prev, ...newPreviews]);
+                            setServiceUploadError(null);
+                            e.target.value = "";
+                          }}
                         />
+                        <Button type="button" variant="secondary" size="sm" onClick={() => document.getElementById("service-images-input")?.click()} disabled={serviceUploading}>
+                          {serviceUploading ? "Subiendo..." : "Elegir imágenes"}
+                        </Button>
+                        {(pendingServiceFiles.length > 0 || serviceForm.images.length > 0) && (
+                          <span className="text-xs text-muted-foreground">
+                            {pendingServiceFiles.length + serviceForm.images.length} / {FILE_CONFIG.maxImagesPerService}
+                          </span>
+                        )}
+                      </div>
+
+                      {serviceUploadError && (
+                        <p className="text-sm text-destructive">{serviceUploadError}</p>
+                      )}
+
+                      <div className="flex flex-wrap gap-3">
+                        {pendingServicePreviews.map((url, idx) => (
+                          <div key={`pending-${idx}`} className="relative h-20 w-28 overflow-hidden rounded-lg border">
+                            <img src={url} alt={`pending-${idx}`} className="h-full w-full object-cover" />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="absolute right-1 top-1 h-6 w-6 rounded-full bg-background/80"
+                              onClick={() => {
+                                setPendingServiceFiles((prev) => prev.filter((_, i) => i !== idx));
+                                setPendingServicePreviews((prev) => {
+                                  const copy = [...prev];
+                                  const [removed] = copy.splice(idx, 1);
+                                  if (removed) URL.revokeObjectURL(removed);
+                                  return copy;
+                                });
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+
+                        {serviceForm.images.map((url, idx) => (
+                          <div key={`existing-${idx}`} className="relative h-20 w-28 overflow-hidden rounded-lg border">
+                            <img src={url} alt={`img-${idx}`} className="h-full w-full object-cover" />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="absolute right-1 top-1 h-6 w-6 rounded-full bg-background/80"
+                              onClick={() => {
+                                setServiceForm((prev) => ({
+                                  ...prev,
+                                  images: prev.images.filter((_, i) => i !== idx),
+                                }));
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -364,15 +504,11 @@ export default function ProfilePage() {
                           variant="ghost"
                           onClick={() => {
                             setEditingServiceId(null);
-                            setServiceForm({
-                              title: "",
-                              description: "",
-                              categoryId: "",
-                              price: 0,
-                              duration: 60,
-                              tags: "",
-                              images: "",
-                            });
+                            setServiceForm(emptyServiceForm);
+                            setPendingServiceFiles([]);
+                            pendingServicePreviews.forEach((url) => URL.revokeObjectURL(url));
+                            setPendingServicePreviews([]);
+                            setServiceUploadError(null);
                           }}
                         >
                           Cancelar
@@ -433,8 +569,11 @@ export default function ProfilePage() {
                                         price: service.price ?? 0,
                                         duration: service.duration || 60,
                                         tags: (service.tags || []).join(", "),
-                                        images: (service.images || []).join(", "),
+                                        images: service.images || [],
                                       });
+                                      setPendingServiceFiles([]);
+                                      setPendingServicePreviews([]);
+                                      setServiceUploadError(null);
                                     }}
                                   >
                                     Editar

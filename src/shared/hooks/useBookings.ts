@@ -27,6 +27,8 @@ export function useUserBookings(params: BookingParams = {}) {
     queryKey: BOOKINGS_QUERY_KEYS.userBookings(params),
     queryFn: () => bookingsApi.getUserBookings(params),
     staleTime: 30 * 1000, // 30 seconds
+    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -35,6 +37,8 @@ export function useProfessionalBookings(params: BookingParams = {}) {
     queryKey: BOOKINGS_QUERY_KEYS.professionalBookings(params),
     queryFn: () => bookingsApi.getProfessionalBookings(params),
     staleTime: 30 * 1000, // 30 seconds
+    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 }
 

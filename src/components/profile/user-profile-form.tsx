@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUserRole } from "@/infrastructure/auth/auth-client";
@@ -25,6 +25,8 @@ import {
   updateProfileSchema,
 } from "@/shared/utils/validations";
 import type { ProfileUpdateData } from "@/shared/types";
+import { fileUploadService, FileCategory, validateFile } from "@/shared/utils/file-upload";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Opciones de especialidades predefinidas agrupadas
 const SPECIALTY_GROUPS = [
@@ -137,6 +139,11 @@ export function UserProfileForm() {
   const isProfessional = sessionIsProfessional || currentUser?.role === "PROFESSIONAL";
   const { mutate: updateProfile, status } = useUpdateProfile();
   const isUpdating = status === 'pending';
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const form = useForm<ProfileUpdateData>({
     resolver: zodResolver(
@@ -177,16 +184,73 @@ export function UserProfileForm() {
     });
   }, [currentUser, form, isProfessional]);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   async function onSubmit(values: ProfileUpdateData) {
+    setUploadError(null);
+
+    let avatarUrl = typeof values.avatar === "string" ? values.avatar.trim() : values.avatar;
+
+    if (pendingFile) {
+      setUploading(true);
+      try {
+        const uploaded = await fileUploadService.uploadFile(pendingFile, FileCategory.AVATAR, undefined, {
+          folder: "avatars",
+          maxWidth: 800,
+          maxHeight: 800,
+          quality: 85,
+        });
+        avatarUrl = uploaded.url;
+      } catch (error) {
+        console.error("Error al subir avatar:", error);
+        const message = error instanceof Error ? error.message : "No se pudo subir el archivo";
+        setUploadError(message);
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
     const payload: ProfileUpdateData = {
       ...values,
-      avatar: typeof values.avatar === "string" ? values.avatar.trim() : values.avatar,
+      avatar: avatarUrl || "",
     };
+
     try {
       await updateProfile(payload);
+      if (pendingFile) {
+        setPendingFile(null);
+      }
     } catch (error) {
       console.error("Error al actualizar el perfil:", error);
     }
+  }
+
+  async function handleAvatarSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+
+    const validation = validateFile(file, FileCategory.AVATAR);
+    if (!validation.isValid) {
+      setUploadError(validation.error || "Archivo no válido");
+      event.target.value = "";
+      return;
+    }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setPendingFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    form.setValue("avatar", "", { shouldDirty: true, shouldTouch: true });
   }
 
   if (isLoading) {
@@ -203,10 +267,53 @@ export function UserProfileForm() {
             name="avatar"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>URL de avatar</FormLabel>
-                <FormControl>
-                  <Input {...field} type="url" placeholder="https://..." />
-                </FormControl>
+                <FormLabel>Foto de perfil</FormLabel>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={previewUrl || field.value || undefined} alt={form.watch("name") || "Avatar"} />
+                    <AvatarFallback>
+                      {(form.watch("name") || "?").slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={handleAvatarSelect}
+                      />
+                      <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                        {uploading ? "Subiendo..." : "Elegir foto"}
+                      </Button>
+                      {(previewUrl || field.value) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (previewUrl) URL.revokeObjectURL(previewUrl);
+                            setPreviewUrl(null);
+                            setPendingFile(null);
+                            form.setValue("avatar", "", { shouldDirty: true });
+                          }}
+                        >
+                          Quitar
+                        </Button>
+                      )}
+                    </div>
+                    {pendingFile ? (
+                      <p className="text-xs text-muted-foreground">Archivo listo para subir: {pendingFile.name}</p>
+                    ) : field.value ? (
+                      <p className="text-xs text-muted-foreground">Se usará la foto actual.</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Aún no has seleccionado una foto.</p>
+                    )}
+                    {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
+                    <p className="text-xs text-muted-foreground">PNG/JPEG/WebP, máx 5MB. La foto se sube al guardar cambios.</p>
+                  </div>
+                </div>
                 <FormMessage />
               </FormItem>
             )}

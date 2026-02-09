@@ -61,7 +61,7 @@ export default function ActivityPage() {
   const [platformUsageError, setPlatformUsageError] = useState<string | null>(null);
   // Get current user to determine role
   const { isProfessional, isAdmin } = useUserRole();
-  const { data: currentUser } = useCurrentUser({ enabled: isProfessional });
+  const { data: currentUser } = useCurrentUser();
   // Fetch data from real APIs
   const { data: notificationsData, isLoading: isLoadingNotifications, error: notificationsError } = useNotifications({
     limit: 50,
@@ -122,6 +122,7 @@ export default function ActivityPage() {
   const bookingsList = useMemo(() => {
     console.log("[activity] raw professionalBookingsData", professionalBookingsData);
     console.log("[activity] raw userBookingsData", userBookingsData);
+
     const unwrap = (raw: any) => {
       if (!raw) return [];
       if (Array.isArray(raw.bookings)) return raw.bookings;
@@ -134,14 +135,31 @@ export default function ActivityPage() {
     const userList = unwrap(userBookingsData);
     const allList = unwrap(allBookingsData);
 
+    const professionalId = currentUser?.professional?.id;
+    const userId = currentUser?.id;
+
+    let baseList: any[];
+
     if (isAdmin) {
-      return allList;
+      baseList = allList;
+    } else if (isProfessional) {
+      baseList = professionalList.filter((b: any) => !professionalId || b.professionalId === professionalId);
+    } else {
+      baseList = userList.filter((b: any) => !userId || b.clientId === userId);
     }
 
-    // Merge both perspectives to avoid empty UI when one role has items
-    const merged = [...professionalList, ...userList];
-    return merged;
-  }, [professionalBookingsData, userBookingsData, allBookingsData, isAdmin]);
+    // Deduplicate bookings to prevent duplicated metrics and timeline entries
+    const seen = new Set<string>();
+    const deduped = baseList.filter((b) => {
+      const id = b?.id;
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    return deduped;
+  }, [professionalBookingsData, userBookingsData, allBookingsData, isAdmin, isProfessional, currentUser?.professional?.id, currentUser?.id]);
 
   const reviewsList = useMemo(() => {
     if (!reviewsData) return [];
@@ -259,13 +277,17 @@ export default function ActivityPage() {
     const completed = bookingsList.filter((b) => b.status?.toUpperCase?.() === "COMPLETED").length;
     const cancelled = bookingsList.filter((b) => b.status?.toUpperCase?.() === "CANCELLED").length;
     const rescheduled = bookingsList.filter((b) => {
+      const statusUpper = b.status?.toUpperCase?.();
+      if (statusUpper === "CANCELLED" || statusUpper === "COMPLETED") return false;
+
       const updatedAt = b.updatedAt ? new Date(b.updatedAt) : null;
       const createdAt = b.createdAt ? new Date(b.createdAt) : null;
       const notes = (b.notes || "").toLowerCase();
       const hasClientNote = notes.includes("cliente:");
       const hasRescheduleKeyword = notes.includes("reagend") || notes.includes("reprogram");
       const hasTimestampChange = updatedAt && createdAt && updatedAt.getTime() !== createdAt.getTime();
-      return b.status?.toUpperCase?.() !== "CANCELLED" && hasTimestampChange && (hasRescheduleKeyword || hasClientNote);
+
+      return hasTimestampChange && (hasRescheduleKeyword || hasClientNote);
     }).length;
 
     return {
@@ -282,12 +304,17 @@ export default function ActivityPage() {
     const completed = bookingsList.filter((b) => b.status?.toUpperCase?.() === "COMPLETED").length;
     const cancelled = bookingsList.filter((b) => b.status?.toUpperCase?.() === "CANCELLED").length;
     const rescheduled = bookingsList.filter((b) => {
+      const statusUpper = b.status?.toUpperCase?.();
+      if (statusUpper === "CANCELLED" || statusUpper === "COMPLETED") return false;
+
       const updatedAt = b.updatedAt ? new Date(b.updatedAt) : null;
       const createdAt = b.createdAt ? new Date(b.createdAt) : null;
       const notes = (b.notes || "").toLowerCase();
+      const hasClientNote = notes.includes("cliente:");
       const hasRescheduleKeyword = notes.includes("reagend") || notes.includes("reprogram");
       const hasTimestampChange = updatedAt && createdAt && updatedAt.getTime() !== createdAt.getTime();
-      return hasTimestampChange || hasRescheduleKeyword;
+
+      return hasTimestampChange && (hasRescheduleKeyword || hasClientNote);
     }).length;
     const profileViews = currentUser?.professional?.profileViewCount ?? 0;
     return { completed, cancelled, rescheduled, profileViews };
@@ -586,24 +613,28 @@ export default function ActivityPage() {
             <Calendar className="h-6 w-6 text-muted-foreground" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Reservas completadas</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="text-2xl font-bold">{generalStats.completedBookings}</div>
-            <Badge variant="secondary" className="text-green-700 bg-green-100">OK</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Canceladas o reprogramadas</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="text-2xl font-bold">{generalStats.cancelledOrRescheduled}</div>
-            <Badge variant="secondary" className="text-amber-700 bg-amber-100">Atención</Badge>
-          </CardContent>
-        </Card>
+        {!isProfessional && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Reservas completadas</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{generalStats.completedBookings}</div>
+              <Badge variant="secondary" className="text-green-700 bg-green-100">OK</Badge>
+            </CardContent>
+          </Card>
+        )}
+        {!isProfessional && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Canceladas o reprogramadas</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-2xl font-bold">{generalStats.cancelledOrRescheduled}</div>
+              <Badge variant="secondary" className="text-amber-700 bg-amber-100">Atención</Badge>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Error State */}

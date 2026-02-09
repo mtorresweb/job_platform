@@ -26,19 +26,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Calendar as CalendarIcon,
   Clock,
   CheckCircle,
   MessageSquare,
   User,
-  Plus,
   Edit,
   AlertCircle,
   Star,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -92,8 +90,6 @@ const getStatusLabel = (status: BookingStatus) => {
 export default function BookingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
@@ -112,6 +108,7 @@ export default function BookingsPage() {
   const { 
     data: clientBookingsData, 
     isLoading: isLoadingClient, 
+    isFetching: isFetchingClient,
     error: clientError 
   } = useUserBookings({
     filters: filterStatus !== "all" ? { status: [filterStatus as BookingStatus] } : undefined
@@ -120,6 +117,7 @@ export default function BookingsPage() {
   const { 
     data: professionalBookingsData, 
     isLoading: isLoadingProfessional, 
+    isFetching: isFetchingProfessional,
     error: professionalError 
   } = useProfessionalBookings({
     filters: filterStatus !== "all" ? { status: [filterStatus as BookingStatus] } : undefined
@@ -134,8 +132,12 @@ export default function BookingsPage() {
   // Determine which data to use
   const bookingsData = isProfessional ? professionalBookingsData : clientBookingsData;
   const isLoading = isProfessional ? isLoadingProfessional : isLoadingClient;
+  const isFetching = isProfessional ? isFetchingProfessional : isFetchingClient;
   const error = isProfessional ? professionalError : clientError;
   const bookings = bookingsData?.bookings || [];
+
+  // Treat subsequent fetches as background to avoid a full-page flash when applying the first filter
+  const isInitialLoading = isLoading && !bookingsData;
 
   // Filter bookings based on active tab and search
   const getFilteredBookings = () => {
@@ -146,6 +148,9 @@ export default function BookingsPage() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
+      const matchesStatus =
+        filterStatus === "all" || booking.status === (filterStatus as BookingStatus);
+
       const matchesTab = 
         activeTab === "all" ||
         (activeTab === "upcoming" && [BookingStatus.CONFIRMED, BookingStatus.PENDING].includes(booking.status) && bookingDate > new Date()) ||
@@ -153,10 +158,14 @@ export default function BookingsPage() {
         (activeTab === "completed" && booking.status === BookingStatus.COMPLETED);
 
       const matchesSearch = 
-        (isProfessional ? booking.client.name : booking.professional.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.service.title.toLowerCase().includes(searchTerm.toLowerCase());
+        (isProfessional ? booking.client.name : booking.professional.name)
+          ?.toLowerCase()
+          ?.includes(searchTerm.toLowerCase()) ||
+        booking.service.title
+          ?.toLowerCase()
+          ?.includes(searchTerm.toLowerCase());
 
-      return matchesTab && matchesSearch;
+      return matchesTab && matchesStatus && matchesSearch;
     });
   };
 
@@ -276,8 +285,8 @@ export default function BookingsPage() {
 
   const isCompleting = completeBookingMutation.isPending;
 
-  // Loading state
-  if (isLoading) {
+  // Loading state (only for the first load)
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
@@ -348,131 +357,6 @@ export default function BookingsPage() {
               Gestiona todas tus citas y servicios programados
             </p>
           </div>
-          
-          <Dialog open={isNewBookingOpen} onOpenChange={setIsNewBookingOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Reserva
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Crear Nueva Reserva</DialogTitle>
-                <DialogDescription>
-                  Programa una nueva cita con un cliente
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Cliente</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ana">Ana García</SelectItem>
-                        <SelectItem value="roberto">Roberto Silva</SelectItem>
-                        <SelectItem value="luis">Luis Herrera</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Servicio</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tipo de servicio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="electrodomesticos">Electrodomésticos</SelectItem>
-                        <SelectItem value="limpieza">Limpieza</SelectItem>
-                        <SelectItem value="plomeria">Plomería</SelectItem>
-                        <SelectItem value="electricidad">Electricidad</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Título del Servicio</label>
-                  <Input placeholder="Ej. Reparación de lavadora" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Fecha</label>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      className="rounded-md border"
-                      locale={es}
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Hora</label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar hora" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="09:00">9:00 AM</SelectItem>
-                          <SelectItem value="10:00">10:00 AM</SelectItem>
-                          <SelectItem value="11:00">11:00 AM</SelectItem>
-                          <SelectItem value="14:00">2:00 PM</SelectItem>
-                          <SelectItem value="15:00">3:00 PM</SelectItem>
-                          <SelectItem value="16:00">4:00 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Duración</label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Duración estimada" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="60">1 hora</SelectItem>
-                          <SelectItem value="90">1.5 horas</SelectItem>
-                          <SelectItem value="120">2 horas</SelectItem>
-                          <SelectItem value="180">3 horas</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Precio</label>
-                      <Input placeholder="$0" />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Dirección</label>
-                  <Input placeholder="Dirección completa del servicio" />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Descripción</label>
-                  <Textarea placeholder="Describe el problema o servicio requerido..." />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Notas Internas</label>
-                  <Textarea placeholder="Notas privadas para recordar..." />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsNewBookingOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={() => setIsNewBookingOpen(false)}>
-                  Crear Reserva
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
 
         {/* Quick Stats */}
@@ -536,7 +420,7 @@ export default function BookingsPage() {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Buscar</label>
                   <Input
-                    placeholder="Cliente, servicio o ubicación..."
+                    placeholder="Cliente o servicio ..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -556,6 +440,12 @@ export default function BookingsPage() {
                       <SelectItem value="CANCELLED">Canceladas</SelectItem>
                     </SelectContent>
                   </Select>
+                  {isFetching && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-foreground/60">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Actualizando reservas…</span>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />                <div>
@@ -569,12 +459,6 @@ export default function BookingsPage() {
                       <span>Pendientes:</span>
                       <Badge variant="outline">
                         {bookings.filter(b => b.status === BookingStatus.PENDING).length}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Confirmadas:</span>
-                      <Badge className="bg-green-100 text-green-700">
-                        {bookings.filter(b => b.status === BookingStatus.CONFIRMED).length}
                       </Badge>
                     </div>
                   </div>
@@ -788,10 +672,6 @@ export default function BookingsPage() {
                     <p className="text-foreground/60 mb-4">
                       No se encontraron reservas que coincidan con los filtros seleccionados
                     </p>
-                    <Button onClick={() => setIsNewBookingOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Crear Primera Reserva
-                    </Button>
                   </div>
                 )}
               </CardContent>

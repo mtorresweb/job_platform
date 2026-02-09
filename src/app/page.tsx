@@ -30,6 +30,7 @@ import {
   Camera,
   Monitor,
   Home,
+  Briefcase,
 } from "lucide-react";
 import { usePlatformStats } from "@/shared/hooks/useReviews";
 
@@ -191,9 +192,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="flex justify-center">
-            <div className="flex gap-6 justify-center flex-nowrap overflow-x-auto pb-2 max-w-5xl w-full">
-              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center">
                   <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <Home className="h-8 w-8 text-blue-600" />
@@ -205,7 +206,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center">
                   <div className="h-16 w-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <Monitor className="h-8 w-8 text-purple-600" />
@@ -217,7 +218,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center">
                   <div className="h-16 w-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <Car className="h-8 w-8 text-orange-600" />
@@ -229,7 +230,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center">
                   <div className="h-16 w-16 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <Camera className="h-8 w-8 text-pink-600" />
@@ -241,7 +242,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center">
                   <div className="h-16 w-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <Wrench className="h-8 w-8 text-yellow-600" />
@@ -249,6 +250,18 @@ export default function HomePage() {
                   <h3 className="font-semibold mb-2">Reparaciones</h3>
                   <p className="text-sm text-foreground/60">
                     Electrodomésticos, mobiliario
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Briefcase className="h-8 w-8 text-green-700" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Consultoría</h3>
+                  <p className="text-sm text-foreground/60">
+                    Negocios, finanzas, estrategia
                   </p>
                 </CardContent>
               </Card>

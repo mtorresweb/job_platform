@@ -344,8 +344,9 @@ class FileUploadService {
       
       // Set up and send the request
       xhr.open('POST', `${ROUTES.api.upload}`);
-      
-      // Add authentication if available
+      xhr.withCredentials = true; // send cookies for session-based auth
+
+      // Add authentication if available (token-based fallback)
       const token =
         typeof window !== 'undefined' &&
         typeof localStorage === 'object' &&
@@ -354,6 +355,7 @@ class FileUploadService {
           : null;
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('x-better-auth-token', token);
       }
       
       xhr.send(formData);
@@ -458,9 +460,10 @@ class FileUploadService {
       });
       
       // Set up and send the request
-      xhr.open('POST', `${ROUTES.api.upload}/multiple`);
-      
-      // Add authentication if available
+      xhr.open('POST', `${ROUTES.api.uploadMultiple}`);
+      xhr.withCredentials = true; // send cookies for session-based auth
+
+      // Add authentication if available (token-based fallback)
       const token =
         typeof window !== 'undefined' &&
         typeof localStorage === 'object' &&
@@ -469,6 +472,7 @@ class FileUploadService {
           : null;
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('x-better-auth-token', token);
       }
       
       xhr.send(formData);

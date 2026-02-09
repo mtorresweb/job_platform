@@ -35,6 +35,9 @@ export function useServices(params: ServiceSearchParams = {}) {
     queryKey: SERVICES_QUERY_KEYS.list(params),
     queryFn: () => servicesApi.getServices(params),
     staleTime: 1 * 60 * 1000, // 1 minute
+    keepPreviousData: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 

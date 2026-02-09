@@ -5,12 +5,13 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "w0.peakpx.com",
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
       },
       {
-        protocol: "https",
-        hostname: "images.unsplash.com",
+        protocol: 'https',
+        hostname: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : 'job-platform-azure.vercel.app',
       },
     ],
   },

@@ -20,50 +20,26 @@ import {
   MapPin,
   Clock,
   CheckCircle,
-  Shield,
   MessageSquare,
-  Calendar,
-  Mail,
   Users,
   Briefcase,
-  GraduationCap,
   AlertCircle,
+  GraduationCap,
+  Shield,
 } from "lucide-react";
 
 export default function ProfessionalProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("services");
+  const professionalId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  const { data: professional, isLoading, error, refetch } = useProfessional(professionalId ?? "");
   const { data: currentUser } = useCurrentUser();
-  
-  // Ensure params.id is a string
-  const professionalId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
-  
-  // Fetch professional data
-  const { 
-    data: professional, 
-    isLoading, 
-    error,
-    refetch 
-  } = useProfessional(professionalId);
 
-  const isOwner = Boolean(currentUser?.id && professional?.user?.id && currentUser.id === professional.user.id);
+  const [activeTab, setActiveTab] = useState("services");
 
-  // Early return for missing ID
-  if (!professionalId) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              No se encontró el ID del profesional
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-    );
-  }
+  const isOwner = Boolean(professional && professional.userId === currentUser?.id);
+
   const handleContactProfessional = () => {
     if (!professional) return;
     router.push(`/messages?conversationWith=${professional.user.id}`);
@@ -71,14 +47,12 @@ export default function ProfessionalProfilePage() {
 
   const handleBookService = (serviceId: string) => {
     if (!professional || !serviceId) return;
-    // Redirect to booking page with pre-filled data
-    window.location.href = `/book?professionalId=${professional.id}&serviceId=${serviceId}`;
+    router.push(`/book?professionalId=${professional.id}&serviceId=${serviceId}`);
   };
 
   const handleEditService = (serviceId: string) => {
     if (!serviceId) return;
-    // Lleva al flujo de edición en el perfil privado
-    window.location.href = `/profile?editService=${serviceId}`;
+    router.push(`/profile?editService=${serviceId}`);
   };
 
   useEffect(() => {
@@ -223,6 +197,16 @@ export default function ProfessionalProfilePage() {
     );
   }
 
+  const services = professional.services ?? [];
+  const specialties = professional.specialties ?? [];
+  const initials = professional.user?.name
+    ? professional.user.name
+        .split(" ")
+        .filter(Boolean)
+        .map((part) => part[0])
+        .join("")
+    : "PR";
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -251,7 +235,7 @@ export default function ProfessionalProfilePage() {
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={professional.user.avatar || ""} />
                     <AvatarFallback className="text-xl">
-                      {professional.user.name.split(' ').map(n => n[0]).join('')}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -274,7 +258,7 @@ export default function ProfessionalProfilePage() {
                     
                     {/* Specialties */}
                     <div className="flex flex-wrap gap-2 mt-4">
-                      {professional.specialties.map((specialty, index) => (
+                      {specialties.map((specialty, index) => (
                         <Badge key={index} variant="outline">
                           {specialty}
                         </Badge>
@@ -287,10 +271,12 @@ export default function ProfessionalProfilePage() {
                         <Star className="h-4 w-4 text-yellow-500 fill-current" />
                         <span className="font-medium">{professional.rating.toFixed(1)}</span>
                         <span className="text-foreground/60">({professional.reviewCount} reseñas)</span>
-                      </div>                      <div className="flex items-center gap-1">
+                      </div>
+                      <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4 text-foreground/60" />
-                        <span className="text-foreground/70">{professional.city}, {professional.state}</span>
-                      </div>                      <div className="flex items-center gap-1">
+                        <span className="text-foreground/70">Aguachica, Cesar</span>
+                      </div>
+                      <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4 text-foreground/60" />
                         <span className="text-foreground/70">
                           Suele responder rápido
@@ -304,11 +290,9 @@ export default function ProfessionalProfilePage() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="services">Servicios</TabsTrigger>
                 <TabsTrigger value="about">Acerca de</TabsTrigger>
-                <TabsTrigger value="portfolio">Portafolio</TabsTrigger>
-                <TabsTrigger value="reviews">Reseñas</TabsTrigger>
               </TabsList>
 
               {/* Services Tab */}
@@ -318,9 +302,10 @@ export default function ProfessionalProfilePage() {
                     <CardTitle>Servicios ofrecidos</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {professional.services.map((service) => (
+                    {services.map((service) => (
                       <div key={service.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start">                          <div className="flex-1">
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="flex-1">
                             <h3 className="font-semibold text-lg">{service.title}</h3>
                             <div className="flex items-center gap-4 mt-3">
                               <span className="text-sm text-foreground/60">
@@ -331,27 +316,34 @@ export default function ProfessionalProfilePage() {
                               </Badge>
                             </div>
                           </div>
-                          {isOwner ? (
-                            <Button 
-                              onClick={() => handleEditService(service.id)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              Editar
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/services/${service.id}`}>
+                                Ver ficha
+                              </Link>
                             </Button>
-                          ) : (
-                            <Button 
-                              onClick={() => handleBookService(service.id)}
-                              size="sm"
-                            >
-                              Reservar
-                            </Button>
-                          )}
+                            {isOwner ? (
+                              <Button 
+                                onClick={() => handleEditService(service.id)}
+                                size="sm"
+                                variant="outline"
+                              >
+                                Editar
+                              </Button>
+                            ) : (
+                              <Button 
+                                onClick={() => handleBookService(service.id)}
+                                size="sm"
+                              >
+                                Reservar
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                     
-                    {professional.services.length === 0 && (
+                    {services.length === 0 && (
                       <div className="text-center py-8 text-gray-500">
                         Aún no hay servicios publicados
                       </div>
@@ -368,7 +360,8 @@ export default function ProfessionalProfilePage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div>
-                      <h3 className="font-semibold mb-2">Descripción</h3>                      <p className="text-foreground/70 leading-relaxed">
+                      <h3 className="font-semibold mb-2">Descripción</h3>
+                      <p className="text-foreground/70 leading-relaxed">
                         {professional.bio || "Sin descripción disponible."}
                       </p>
                     </div>
@@ -408,66 +401,6 @@ export default function ProfessionalProfilePage() {
                 </Card>
               </TabsContent>
 
-              {/* Portfolio Tab */}
-              <TabsContent value="portfolio" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Portafolio</CardTitle>
-                  </CardHeader>
-                  <CardContent>                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="col-span-full text-center py-8 text-gray-500">
-                        Aún no hay elementos en el portafolio
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Reviews Tab */}
-              <TabsContent value="reviews" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Reseñas de clientes</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">                    {professional.reviews?.map((review, index) => (
-                      <div key={index} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>
-                                {review.client.name.split(' ').map((n: string) => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{review.client.name}</div>
-                              <div className="flex items-center gap-1">
-                                {Array.from({ length: 5 }, (_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`h-3 w-3 ${
-                                      i < review.rating
-                                        ? "text-yellow-500 fill-current"
-                                        : "text-gray-300"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-sm text-gray-500">
-                            {new Date(review.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-foreground/70 mt-2">{review.comment}</p>
-                      </div>
-                    )) || (
-                      <div className="text-center py-8 text-gray-500">
-                        Aún no hay reseñas
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
 
@@ -486,26 +419,17 @@ export default function ProfessionalProfilePage() {
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Enviar mensaje
                 </Button>
-                <Button variant="outline" className="w-full">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Agendar llamada
-                </Button>
                 
                 <Separator />
-                  <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-gray-500" />
-                    <span className="text-foreground/70">{professional.user.email}</span>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
             {/* Quick Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>Estadísticas rápidas</CardTitle>
-              </CardHeader>              <CardContent className="space-y-4">
+                <CardTitle>Información útil</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-foreground/70">Experiencia</span>
                   <span className="font-medium">{professional.experience} años</span>
@@ -524,32 +448,6 @@ export default function ProfessionalProfilePage() {
                     {new Date(professional.user.createdAt).getFullYear()}
                   </span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Verification Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Verification</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Identidad verificada</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Correo verificado</span>
-                </div>                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Teléfono verificado</span>
-                </div>
-                {professional.isVerified && (
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">Profesional certificado</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
