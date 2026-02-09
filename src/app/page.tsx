@@ -29,6 +29,7 @@ import {
   Car,
   Camera,
   Monitor,
+  Home,
 } from "lucide-react";
 import { usePlatformStats } from "@/shared/hooks/useReviews";
 
@@ -76,8 +77,8 @@ export default function HomePage() {
             </h1>
             <p className="text-xl md:text-2xl text-foreground/70 max-w-3xl mx-auto leading-relaxed">
               La plataforma más confiable para encontrar servicios profesionales
-              de calidad. Conectamos clientes con expertos verificados en toda
-              Colombia.
+              de calidad. Conectamos clientes con expertos en
+              Aguachica.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button
@@ -190,59 +191,68 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-              </CardContent>
-            </Card>
+          <div className="flex justify-center">
+            <div className="flex gap-6 justify-center flex-nowrap overflow-x-auto pb-2 max-w-5xl w-full">
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Home className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Hogar</h3>
+                  <p className="text-sm text-foreground/60">
+                    Limpieza, pintura, jardinería
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Monitor className="h-8 w-8 text-purple-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Tecnología</h3>
-                <p className="text-sm text-foreground/60">
-                  Desarrollo, diseño, soporte
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Monitor className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Tecnología</h3>
+                  <p className="text-sm text-foreground/60">
+                    Desarrollo, diseño, soporte
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Car className="h-8 w-8 text-orange-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Automotive</h3>
-                <p className="text-sm text-foreground/60">
-                  Mecánica, detailing, transporte
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Car className="h-8 w-8 text-orange-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Automotriz</h3>
+                  <p className="text-sm text-foreground/60">
+                    Mecánica, detailing, transporte
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Camera className="h-8 w-8 text-pink-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Eventos</h3>
-                <p className="text-sm text-foreground/60">
-                  Fotografía, video, organización
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Camera className="h-8 w-8 text-pink-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Eventos</h3>
+                  <p className="text-sm text-foreground/60">
+                    Fotografía, video, organización
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="h-16 w-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Wrench className="h-8 w-8 text-yellow-600" />
-                </div>
-                <h3 className="font-semibold mb-2">Reparaciones</h3>
-                <p className="text-sm text-foreground/60">
-                  Electrodomésticos, mobiliario
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer w-[220px] md:w-[240px] flex-none">
+                <CardContent className="p-6 text-center">
+                  <div className="h-16 w-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Wrench className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Reparaciones</h3>
+                  <p className="text-sm text-foreground/60">
+                    Electrodomésticos, mobiliario
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <div className="text-center mt-12">
@@ -373,12 +383,10 @@ export default function HomePage() {
                 {/* Connection line */}
                 <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-primary/50 to-transparent"></div>
               </div>
-              <h3 className="text-xl font-semibold mb-3">
-                Describe tu Necesidad
-              </h3>
+              <h3 className="text-xl font-semibold mb-3">Regístrate</h3>
               <p className="text-foreground/60">
-                Cuéntanos qué servicio necesitas y en qué ubicación. Será rápido
-                y fácil.
+                Crea tu cuenta gratis y completa tu perfil para recibir mejores
+                recomendaciones.
               </p>
             </div>
 
@@ -391,10 +399,12 @@ export default function HomePage() {
                 </div>
                 <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-primary/50 to-transparent"></div>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Recibe Propuestas</h3>
+              <h3 className="text-xl font-semibold mb-3">
+                Contacta y agenda
+              </h3>
               <p className="text-foreground/60">
-                Los profesionales verificados te enviarán propuestas
-                personalizadas con precios.
+                Chatea con profesionales verificados y agenda el servicio o
+                contratación con horarios que te funcionen.
               </p>
             </div>
 
@@ -404,10 +414,10 @@ export default function HomePage() {
                   3
                 </span>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Elige y Contrata</h3>
+              <h3 className="text-xl font-semibold mb-3">Deja tu reseña</h3>
               <p className="text-foreground/60">
-                Compara perfiles, lee reseñas y contrata al profesional que más
-                te convenga.
+                Califica el servicio, comparte tu experiencia y ayuda a otros a
+                elegir mejor.
               </p>
             </div>
           </div>
@@ -568,16 +578,16 @@ export default function HomePage() {
             </div>
             <div className="grid grid-cols-3 gap-8 pt-12 max-w-md mx-auto">
               <div className="text-center">
-                <CheckCircle className="h-8 w-8 text-white/80 mx-auto mb-2" />
-                <p className="text-sm text-white/70">Registro gratuito</p>
+                <CheckCircle className="h-8 w-8 text-primary mx-auto mb-2" />
+                <p className="text-sm text-foreground">Registro gratuito</p>
               </div>
               <div className="text-center">
-                <Shield className="h-8 w-8 text-white/80 mx-auto mb-2" />
-                <p className="text-sm text-white/70">100% seguro</p>
+                <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
+                <p className="text-sm text-foreground">100% seguro</p>
               </div>
               <div className="text-center">
-                <Star className="h-8 w-8 text-white/80 mx-auto mb-2" />
-                <p className="text-sm text-white/70">Sin comisiones</p>
+                <Star className="h-8 w-8 text-primary mx-auto mb-2" />
+                <p className="text-sm text-foreground">Sin comisiones</p>
               </div>
             </div>
           </div>
@@ -602,7 +612,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <p className="text-foreground/70 mb-6 max-w-sm">
-                  La plataforma líder en servicios profesionales en Colombia.
+                  La plataforma líder en servicios profesionales en Aguachica.
                   Conectamos talento con oportunidades.
                 </p>
               </div>

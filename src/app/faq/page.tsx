@@ -83,7 +83,7 @@ const faqs = [
       {
         question: "¿Puedo buscar profesionales en toda Colombia?",
         answer:
-          "Puedes contactar profesionales de distintas zonas; revisa su cobertura en el perfil y confirma disponibilidad por mensaje.",
+          "Puedes contactar profesionales de distintas zonas en Aguachica; revisa su cobertura en el perfil y confirma disponibilidad por mensaje.",
       },
     ],
   },

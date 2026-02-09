@@ -51,8 +51,22 @@ async function main() {
 
   console.log('✅ Created service categories');
 
-  // Create users (clients and professionals)
+  // Create users (clients, professionals, admin)
   const hashedPassword = await bcrypt.hash('password123', 10);
+  const adminPassword = await bcrypt.hash('Melocaramelo123#', 10);
+
+  // Create admin user
+  const adminUser = await prisma.user.create({
+    data: {
+      email: 'serviciospro910@gmail.com',
+      name: 'Administrador',
+      password: adminPassword,
+      role: UserRole.ADMIN,
+      isEmailVerified: true,
+      isActive: true,
+    },
+  });
+  console.log('✅ Created admin user:', adminUser.email);
 
   // Create client users
   const clients = await Promise.all([
@@ -311,6 +325,7 @@ async function main() {
   console.log(`
 📊 Summary:
 - ${categories.length} service categories
+- 1 admin user
 - ${clients.length} client users  
 - ${professionalUsers.length} professional users
 - ${professionals.length} professional profiles

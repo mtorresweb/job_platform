@@ -36,6 +36,17 @@ const SORT_OPTIONS = [
   { value: "recent", label: "Más recientes" },
 ];
 
+const translateErrorMessage = (message?: string) => {
+  if (!message) return undefined;
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("the string did not match the expected pattern")) {
+    return "El valor ingresado no coincide con el formato esperado.";
+  }
+
+  return message;
+};
+
 export default function ProfessionalsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -279,7 +290,7 @@ export default function ProfessionalsPage() {
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Error al cargar profesionales</h3>
               <p className="text-foreground/60 mb-4">
-                {error?.message || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.'}
+                {translateErrorMessage(error?.message) || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.'}
               </p>
               <Button
                 variant="outline"

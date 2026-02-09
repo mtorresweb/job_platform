@@ -83,7 +83,7 @@ export default function HowItWorksPage() {
       icon: Users,
       title: "Comunidad Activa",
       description:
-        "Miles de profesionales calificados y clientes satisfechos en toda Colombia.",
+        "Miles de profesionales calificados y clientes satisfechos en Aguachica.",
     },
     {
       icon: DollarSign,
