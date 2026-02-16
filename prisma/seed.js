@@ -220,6 +220,7 @@ async function main() {
         description: 'Reparación profesional de lavadoras, neveras, estufas y más. Servicio a domicilio con garantía de 6 meses.',
         categoryId: categories[0].id, // Hogar
         professionalId: professionals[0].id,
+        priceType: 'PER_JOB',
         price: 50000,
         duration: 120,
         tags: ['Reparación', 'A domicilio', 'Garantía', 'Electrodomésticos'],
@@ -232,6 +233,7 @@ async function main() {
         description: 'Creación de sitios web modernos y aplicaciones web usando React, Next.js y Node.js. Diseño responsive y optimizado.',
         categoryId: categories[1].id, // Tecnología
         professionalId: professionals[0].id,
+        priceType: 'PER_JOB',
         price: 800000,
         duration: 480,
         tags: ['React', 'Next.js', 'Responsive', 'Web Development'],
@@ -244,6 +246,7 @@ async function main() {
         description: 'Fotografía profesional para bodas, cumpleaños, eventos corporativos y sociales. Edición incluida.',
         categoryId: categories[2].id, // Fotografía
         professionalId: professionals[1].id,
+        priceType: 'PER_HOUR',
         price: 200000,
         duration: 240,
         tags: ['Bodas', 'Eventos', 'Corporativo', 'Edición'],
@@ -256,6 +259,7 @@ async function main() {
         description: 'Instalación y reparación de tuberías, grifos, sanitarios. Servicio 24/7 para emergencias.',
         categoryId: categories[0].id, // Hogar
         professionalId: professionals[2].id,
+        priceType: 'PER_JOB',
         price: 40000,
         duration: 90,
         tags: ['24/7', 'Emergencias', 'Garantía', 'Instalación'],
@@ -268,6 +272,7 @@ async function main() {
         description: 'Reparación y mantenimiento de vehículos. Diagnóstico computarizado incluido. Repuestos originales.',
         categoryId: categories[3].id, // Automotriz
         professionalId: professionals[3].id,
+        priceType: 'PER_HOUR',
         price: 80000,
         duration: 180,
         tags: ['Diagnóstico', 'Mantenimiento', 'Garantía', 'Repuestos'],

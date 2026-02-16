@@ -38,13 +38,15 @@ export default function BookContent() {
 
   const formattedPrice = useMemo(() => {
     if (!service?.price) return "A convenir";
-    return new Intl.NumberFormat("es-CO", {
+    const suffix = service.priceType === "PER_HOUR" ? " / hora" : " por trabajo";
+    const value = new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(service.price);
-  }, [service?.price]);
+    return `${value}${suffix}`;
+  }, [service?.price, service?.priceType]);
 
   const suggestedSlots = useMemo(() => {
     const slots: string[] = [];
@@ -394,7 +396,11 @@ export default function BookContent() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Precio</span>
-                    <span className="font-semibold">{service.price ? `$${service.price.toFixed(2)}` : "A convenir"}</span>
+                    <span className="font-semibold">
+                      {service.price
+                        ? `${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(service.price)}${service.priceType === "PER_HOUR" ? " / hora" : " por trabajo"}`
+                        : "A convenir"}
+                    </span>
                   </div>
                   {/* Estado removed to avoid verification messaging */}
                 </CardContent>

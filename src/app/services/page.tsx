@@ -48,6 +48,12 @@ export default function ServicesPage() {
   // Fetch services (supports query); keeps previous data during refetch
   const { data: servicesData, isLoading: isLoadingServices, isFetching } = useServices(searchParams);
 
+  const formatPrice = (svc: any) => {
+    if (!Number.isFinite(svc?.price)) return "A convenir";
+    const suffix = svc?.priceType === "PER_HOUR" ? " / hora" : " por trabajo";
+    return `${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(Number(svc.price))}${suffix}`;
+  };
+
   const normalizeServices = (payload: any) => {
     if (!payload) return [];
     const data = payload.data ?? payload;
@@ -303,6 +309,10 @@ export default function ServicesPage() {
                       <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
                         {service.title}
                       </h3>
+
+                      <Badge variant="outline" className="mb-3 w-fit">
+                        {formatPrice(service)}
+                      </Badge>
 
                       <p className="text-foreground/70 mb-4">
                         {service.description}

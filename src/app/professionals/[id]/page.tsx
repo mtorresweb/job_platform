@@ -26,6 +26,9 @@ import {
   AlertCircle,
   GraduationCap,
   Shield,
+  Calendar,
+  Paperclip,
+  ArrowRight as LinkIcon,
 } from "lucide-react";
 
 export default function ProfessionalProfilePage() {
@@ -39,6 +42,7 @@ export default function ProfessionalProfilePage() {
   const [activeTab, setActiveTab] = useState("services");
 
   const isOwner = Boolean(professional && professional.userId === currentUser?.id);
+  const viewerRole = currentUser?.role || "CLIENT";
 
   const handleContactProfessional = () => {
     if (!professional) return;
@@ -199,6 +203,7 @@ export default function ProfessionalProfilePage() {
 
   const services = professional.services ?? [];
   const specialties = professional.specialties ?? [];
+  const portfolios = professional.portfolios ?? [];
   const initials = professional.user?.name
     ? professional.user.name
         .split(" ")
@@ -206,6 +211,8 @@ export default function ProfessionalProfilePage() {
         .map((part) => part[0])
         .join("")
     : "PR";
+
+  const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("es-CO") : "Sin fecha");
 
   return (
     <div className="min-h-screen bg-background">
@@ -290,8 +297,9 @@ export default function ProfessionalProfilePage() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="services">Servicios</TabsTrigger>
+                <TabsTrigger value="portfolio">Portafolio</TabsTrigger>
                 <TabsTrigger value="about">Acerca de</TabsTrigger>
               </TabsList>
 
@@ -347,6 +355,80 @@ export default function ProfessionalProfilePage() {
                       <div className="text-center py-8 text-gray-500">
                         Aún no hay servicios publicados
                       </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="portfolio" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Portafolio</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {portfolios.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 space-y-2">
+                        <p>
+                          {isOwner
+                            ? "Aún no has agregado elementos a tu portafolio."
+                            : viewerRole === "ADMIN"
+                              ? "Este profesional no tiene elementos publicados."
+                              : "Este profesional aún no ha publicado elementos."}
+                        </p>
+                        {isOwner && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href="/profile">Agregar portafolio</Link>
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      portfolios.map((item) => (
+                        <div key={item.id} className="p-4 border rounded-lg hover:shadow-sm transition-shadow space-y-2">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-lg">{item.title}</h3>
+                                <Badge variant="secondary">
+                                  {item.type === "EXPERIENCE" ? "Experiencia" : item.type === "CERTIFICATE" ? "Certificado" : "Proyecto"}
+                                </Badge>
+                                {item.organization && (
+                                  <Badge variant="outline">{item.organization}</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-foreground/70 flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-foreground/60" />
+                                <span>
+                                  {formatDate(item.startDate)}
+                                  {" "}–{" "}
+                                  {item.isCurrent ? "Actual" : formatDate(item.endDate)}
+                                </span>
+                              </p>
+                              {item.description && (
+                                <p className="text-sm text-foreground/70 leading-relaxed">{item.description}</p>
+                              )}
+                              <div className="flex flex-wrap gap-2">
+                                {(item.tags || []).map((tag) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                                ))}
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-sm">
+                                {item.link && (
+                                  <Link href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary">
+                                    <LinkIcon className="h-4 w-4" />
+                                    Enlace
+                                  </Link>
+                                )}
+                                {item.attachmentUrl && (
+                                  <Link href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary">
+                                    <Paperclip className="h-4 w-4" />
+                                    Ver adjunto
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </CardContent>
                 </Card>

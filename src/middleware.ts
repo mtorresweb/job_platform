@@ -17,6 +17,8 @@ export async function middleware(request: NextRequest) {
     "/api/reviews/platform-stats",
     "/api/analytics/platform-usage",
     "/api/analytics/profile-view",
+    "/api/services", // list/detail de servicios públicos
+    "/api/professionals", // endpoints públicos de profesionales
   ];
   if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
@@ -42,8 +44,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/profile/:path*",
-    "/services/:path*",
-    "/professionals/:path*",
+    // Nota: profesionales y servicios son públicos; se excluyen aquí
     "/notifications/:path*",
     "/activity/:path*",
     "/dashboard/:path*",

@@ -39,6 +39,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/nodemailer": "^6.4.17",
+    "@vercel/blob": "^2.2.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "better-auth": "^1.2.8",

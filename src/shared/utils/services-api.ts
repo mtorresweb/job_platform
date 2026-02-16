@@ -23,6 +23,7 @@ export interface Service {
   categoryId: string;
   professionalId: string;
   duration: number;
+  priceType: 'PER_JOB' | 'PER_HOUR';
   price: number;
   images: string[];
   tags: string[];
@@ -51,6 +52,7 @@ export interface CreateServiceData {
   title: string;
   description: string;
   categoryId: string;
+  priceType: 'PER_JOB' | 'PER_HOUR';
   price: number;
   duration: number;
   images?: string[];

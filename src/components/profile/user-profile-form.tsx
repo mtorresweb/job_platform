@@ -251,6 +251,9 @@ export function UserProfileForm() {
     setPendingFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     form.setValue("avatar", "", { shouldDirty: true, shouldTouch: true });
+
+    // Reset input value so the same file can be re-selected after removing
+    event.target.value = "";
   }
 
   if (isLoading) {
@@ -297,6 +300,9 @@ export function UserProfileForm() {
                             setPreviewUrl(null);
                             setPendingFile(null);
                             form.setValue("avatar", "", { shouldDirty: true });
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
                           }}
                         >
                           Quitar

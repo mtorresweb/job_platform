@@ -3,16 +3,23 @@ import { auth } from '@/infrastructure/auth/auth';
 import { getToken } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/infrastructure/auth/config';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { FILE_CONFIG } from '@/shared/constants';
 import sharp from 'sharp';
+import { put, del } from '@vercel/blob';
 
 // Configure maximum file size for Next.js
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      return NextResponse.json(
+        { success: false, message: 'Configuración de almacenamiento no disponible' },
+        { status: 500 }
+      );
+    }
+
     // Check authentication: prefer better-auth, fallback to NextAuth
     let userId: string | null = null;
 
@@ -79,18 +86,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
+    // Generate unique filename base
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
     const extension = file.name.split('.').pop();
     const filename = `${timestamp}-${randomId}.${extension}`;
-
-    // Create upload directory structure
-    const uploadDir = join(process.cwd(), 'public', 'uploads', folder);
-    await mkdir(uploadDir, { recursive: true });
-
-    const filePath = join(uploadDir, filename);
-    const publicUrl = `/uploads/${folder}/${filename}`;
+    const baseKey = `${folder}/${timestamp}-${randomId}`;
 
     if (isImage) {
       // Process image with sharp
@@ -119,14 +120,23 @@ export async function POST(request: NextRequest) {
 
       // Update filename for WebP
       const webpFilename = filename.replace(/\.[^/.]+$/, '.webp');
-      const webpFilePath = join(uploadDir, webpFilename);
-      const webpPublicUrl = `/uploads/${folder}/${webpFilename}`;
+      const webpKey = `${baseKey}.webp`;
 
-      await writeFile(webpFilePath, processedBuffer);
+      const webpUpload = await put(webpKey, processedBuffer, {
+        access: 'public',
+        contentType: 'image/webp',
+        token: blobToken,
+      });
 
       // Also save original if it's not WebP
+      let originalUrl: string | null = null;
       if (file.type !== 'image/webp') {
-        await writeFile(filePath, buffer);
+        const originalUpload = await put(`${baseKey}.${extension}`, buffer, {
+          access: 'public',
+          contentType: file.type,
+          token: blobToken,
+        });
+        originalUrl = originalUpload.url;
       }
 
       return NextResponse.json({
@@ -134,8 +144,8 @@ export async function POST(request: NextRequest) {
         data: {
           filename: webpFilename,
           originalName: file.name,
-          url: webpPublicUrl,
-          originalUrl: file.type !== 'image/webp' ? publicUrl : null,
+          url: webpUpload.url,
+          originalUrl,
           size: processedBuffer.length,
           originalSize: file.size,
           type: 'image/webp',
@@ -153,15 +163,19 @@ export async function POST(request: NextRequest) {
       // Handle document files
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
-      await writeFile(filePath, buffer);
+
+      const upload = await put(`${baseKey}.${extension}`, buffer, {
+        access: 'public',
+        contentType: file.type,
+        token: blobToken,
+      });
 
       return NextResponse.json({
         success: true,
         data: {
           filename,
           originalName: file.name,
-          url: publicUrl,
+          url: upload.url,
           size: file.size,
           type: file.type,
           folder,
@@ -184,6 +198,14 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      return NextResponse.json(
+        { success: false, message: 'Configuración de almacenamiento no disponible' },
+        { status: 500 }
+      );
+    }
+
     // Check authentication: prefer better-auth, fallback to NextAuth
     let userId: string | null = null;
 
@@ -214,34 +236,36 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const blobUrl = searchParams.get('url');
     const filename = searchParams.get('filename');
     const folder = searchParams.get('folder') || 'uploads';
 
-    if (!filename) {
+    if (!blobUrl && !filename) {
       return NextResponse.json(
-        { success: false, message: 'Nombre de archivo requerido' },
+        { success: false, message: 'URL o nombre de archivo requerido' },
         { status: 400 }
       );
     }
 
-    const filePath = join(process.cwd(), 'public', 'uploads', folder, filename);
-    
-    try {
-      const fs = await import('fs/promises');
-      await fs.unlink(filePath);
-        return NextResponse.json({
-        success: true,
-        message: 'Archivo eliminado exitosamente',
-      });
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+    // Prefer explicit blob URL; fallback to constructed URL if base is provided
+    let target = blobUrl || '';
+    if (!target && filename) {
+      const baseUrl = process.env.BLOB_PUBLIC_BASE_URL?.replace(/\/$/, '');
+      if (!baseUrl) {
         return NextResponse.json(
-          { success: false, message: 'Archivo no encontrado' },
-          { status: 404 }
+          { success: false, message: 'Falta BLOB_PUBLIC_BASE_URL para eliminar por nombre' },
+          { status: 400 }
         );
       }
-      throw error;
+      target = `${baseUrl}/${folder}/${filename}`;
     }
+
+    await del(target, { token: blobToken });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Archivo eliminado exitosamente',
+    });
 
   } catch (error) {
     console.error('Error deleting file:', error);

@@ -122,6 +122,7 @@ model Professional {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   services     Service[]
   availability Availability[]
+  portfolios   ProfessionalPortfolio[]
   
   @@map("professionals")
 }
@@ -167,6 +168,7 @@ model Service {
   categoryId     String
   professionalId String
   duration       Int             // en minutos
+  priceType      PriceType       @default(PER_JOB)
   price          Float           @default(0.0) // precio del servicio
   images         String[]        // URLs de imágenes
   tags           String[]        // etiquetas para búsqueda
@@ -184,6 +186,38 @@ model Service {
   bookings       Booking[]
   
   @@map("services")
+}
+
+model ProfessionalPortfolio {
+  id              String        @id @default(cuid())
+  professionalId  String
+  title           String
+  type            PortfolioType @default(PROJECT)
+  description     String?
+  organization    String?
+  link            String?
+  attachmentUrl   String?
+  tags            String[]
+  startDate       DateTime?
+  endDate         DateTime?
+  isCurrent       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@map("professional_portfolio")
+}
+
+enum PriceType {
+  PER_JOB   // precio por trabajo
+  PER_HOUR  // precio por hora
+}
+
+enum PortfolioType {
+  EXPERIENCE
+  CERTIFICATE
+  PROJECT
 }
 
 model PasswordResetToken {

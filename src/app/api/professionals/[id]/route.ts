@@ -37,6 +37,13 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
         },
+        portfolios: {
+          orderBy: [
+            { isCurrent: 'desc' },
+            { startDate: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        },
               availability: {
                 orderBy: { dayOfWeek: 'asc' },
               },
@@ -77,6 +84,13 @@ export async function GET(
               }
             },
             orderBy: { createdAt: 'desc' },
+          },
+          portfolios: {
+            orderBy: [
+              { isCurrent: 'desc' },
+              { startDate: 'desc' },
+              { createdAt: 'desc' },
+            ],
           },
           availability: {
             orderBy: { dayOfWeek: 'asc' },

@@ -3,16 +3,23 @@ import { auth } from '@/infrastructure/auth/auth';
 import { getToken } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/infrastructure/auth/config';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { FILE_CONFIG } from '@/shared/constants';
 import sharp from 'sharp';
+import { put } from '@vercel/blob';
 
 // Configure maximum file size for Next.js
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      return NextResponse.json(
+        { success: false, message: 'Configuración de almacenamiento no disponible' },
+        { status: 500 }
+      );
+    }
+
     // Check authentication: prefer better-auth, fallback to NextAuth
     let userId: string | null = null;
 
@@ -70,10 +77,6 @@ export async function POST(request: NextRequest) {
     const uploadedFiles = [];
     const errors = [];
 
-    // Create upload directory structure
-    const uploadDir = join(process.cwd(), 'public', 'uploads', folder);
-    await mkdir(uploadDir, { recursive: true });
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
@@ -104,9 +107,7 @@ export async function POST(request: NextRequest) {
         const randomId = Math.random().toString(36).substring(2, 15);
         const extension = file.name.split('.').pop();
         const filename = `${timestamp}-${randomId}-${i}.${extension}`;
-
-        const filePath = join(uploadDir, filename);
-        const publicUrl = `/uploads/${folder}/${filename}`;
+        const baseKey = `${folder}/${timestamp}-${randomId}-${i}`;
 
         if (isImage) {
           // Process image with sharp
@@ -135,22 +136,31 @@ export async function POST(request: NextRequest) {
 
           // Update filename for WebP
           const webpFilename = filename.replace(/\.[^/.]+$/, '.webp');
-          const webpFilePath = join(uploadDir, webpFilename);
-          const webpPublicUrl = `/uploads/${folder}/${webpFilename}`;
+          const webpKey = `${baseKey}.webp`;
 
-          await writeFile(webpFilePath, processedBuffer);
+          const webpUpload = await put(webpKey, processedBuffer, {
+            access: 'public',
+            contentType: 'image/webp',
+            token: blobToken,
+          });
 
           // Also save original if it's not WebP
+          let originalUrl: string | null = null;
           if (file.type !== 'image/webp') {
-            await writeFile(filePath, buffer);
+            const originalUpload = await put(`${baseKey}.${extension}`, buffer, {
+              access: 'public',
+              contentType: file.type,
+              token: blobToken,
+            });
+            originalUrl = originalUpload.url;
           }
 
           uploadedFiles.push({
             index: i,
             filename: webpFilename,
             originalName: file.name,
-            url: webpPublicUrl,
-            originalUrl: file.type !== 'image/webp' ? publicUrl : null,
+            url: webpUpload.url,
+            originalUrl,
             size: processedBuffer.length,
             originalSize: file.size,
             type: 'image/webp',
@@ -166,14 +176,18 @@ export async function POST(request: NextRequest) {
           // Handle document files
           const bytes = await file.arrayBuffer();
           const buffer = Buffer.from(bytes);
-          
-          await writeFile(filePath, buffer);
+
+          const upload = await put(`${baseKey}.${extension}`, buffer, {
+            access: 'public',
+            contentType: file.type,
+            token: blobToken,
+          });
 
           uploadedFiles.push({
             index: i,
             filename,
             originalName: file.name,
-            url: publicUrl,
+            url: upload.url,
             size: file.size,
             type: file.type,
             folder,

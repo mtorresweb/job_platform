@@ -187,6 +187,7 @@ export const serviceSchema = z.object({
   price: z
     .number({ invalid_type_error: "El precio es requerido" })
     .min(0, "El precio no puede ser negativo"),
+  priceType: z.enum(["PER_JOB", "PER_HOUR"]).default("PER_JOB"),
   duration: z
     .number()
     .min(
@@ -210,6 +211,23 @@ export const serviceSchema = z.object({
     )
     .optional()
     .default([]),
+});
+
+export const portfolioItemSchema = z.object({
+  title: z.string().min(3, "Título demasiado corto").max(120, "Título muy largo"),
+  type: z.enum(["EXPERIENCE", "CERTIFICATE", "PROJECT"]),
+  description: z.string().max(1000, "Máximo 1000 caracteres").optional().nullable(),
+  organization: z.string().max(120, "Máximo 120 caracteres").optional().nullable(),
+  link: z.string().url("URL inválida").optional().nullable(),
+  attachmentUrl: z.string().url("URL de archivo inválida").optional().nullable(),
+  tags: z.array(z.string()).max(8, "Máximo 8 etiquetas").optional().default([]),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+  isCurrent: z.boolean().optional().default(false),
+});
+
+export const updatePortfolioItemSchema = portfolioItemSchema.partial().extend({
+  id: z.string().cuid("ID de portafolio inválido"),
 });
 
 export const updateServiceSchema = serviceSchema.partial().extend({

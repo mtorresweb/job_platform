@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : 'job-platform-azure.vercel.app',
       },
+      {
+        protocol: 'https',
+        hostname: process.env.BLOB_PUBLIC_BASE_URL ? new URL(process.env.BLOB_PUBLIC_BASE_URL).hostname : 'public.blob.vercel-storage.com',
+      },
     ],
   },
   turbopack: {

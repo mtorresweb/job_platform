@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight as LinkIcon, Briefcase, Calendar, Paperclip, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCurrentUser } from "@/shared/hooks/useCurrentUser";
 import { fileUploadService, FileCategory, validateFile } from "@/shared/utils/file-upload";
 import { FILE_CONFIG } from "@/shared/constants";
+import { useDeletePortfolio, useProfessionalPortfolio, useUpsertPortfolio } from "@/shared/hooks/usePortfolio";
 
 function ProfilePageContent() {
   const { data: user, isLoading: loadingUser } = useCurrentUser();
@@ -52,6 +54,7 @@ function ProfilePageContent() {
     title: "",
     description: "",
     categoryId: "",
+    priceType: "PER_JOB" as "PER_JOB" | "PER_HOUR",
     price: 0,
     duration: 60,
     tags: "",
@@ -65,6 +68,25 @@ function ProfilePageContent() {
   const [serviceUploadError, setServiceUploadError] = useState<string | null>(null);
   const [serviceUploading, setServiceUploading] = useState(false);
 
+  const emptyPortfolioForm = {
+    title: "",
+    type: "PROJECT" as "EXPERIENCE" | "CERTIFICATE" | "PROJECT",
+    description: "",
+    organization: "",
+    link: "",
+    attachmentUrl: "",
+    tags: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false,
+  };
+
+  const [portfolioForm, setPortfolioForm] = useState(emptyPortfolioForm);
+  const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
+  const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+
   const toAbsoluteUrl = (url: string) => {
     if (!url) return "";
     if (/^https?:\/\//i.test(url)) return url;
@@ -76,6 +98,9 @@ function ProfilePageContent() {
   const { data: servicesData, isLoading: loadingServices } = useProfessionalServices(professionalId, { limit: 20 });
   const createServiceMutation = useCreateService();
   const updateServiceMutation = useUpdateService();
+  const { data: portfolioItems, isLoading: loadingPortfolio } = useProfessionalPortfolio(professionalId || undefined);
+  const upsertPortfolioMutation = useUpsertPortfolio();
+  const deletePortfolioMutation = useDeletePortfolio();
 
   useEffect(() => {
     const requestedId = searchParams.get("editService");
@@ -87,6 +112,7 @@ function ProfilePageContent() {
         title: target.title || "",
         description: target.description || "",
         categoryId: target.category?.id || target.categoryId || "",
+        priceType: (target as any).priceType || "PER_JOB",
         price: target.price ?? 0,
         duration: target.duration || 60,
         tags: (target.tags || []).join(", "),
@@ -97,6 +123,15 @@ function ProfilePageContent() {
       setServiceUploadError(null);
     }
   }, [searchParams, servicesData]);
+
+  useEffect(() => {
+    const requestedId = searchParams.get("editPortfolio");
+    if (!requestedId || !portfolioItems) return;
+    const target = portfolioItems.find((p) => p.id === requestedId);
+    if (target) {
+      handleEditPortfolio(target);
+    }
+  }, [searchParams, portfolioItems]);
 
   const handleServiceSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -166,6 +201,7 @@ function ProfilePageContent() {
           title: serviceForm.title,
           description: serviceForm.description,
           categoryId: serviceForm.categoryId,
+          priceType: serviceForm.priceType,
           price: priceValue,
           duration: Number(serviceForm.duration),
           tags,
@@ -176,6 +212,7 @@ function ProfilePageContent() {
           title: serviceForm.title,
           description: serviceForm.description,
           categoryId: serviceForm.categoryId,
+          priceType: serviceForm.priceType,
           price: priceValue,
           duration: Number(serviceForm.duration),
           tags,
@@ -187,6 +224,7 @@ function ProfilePageContent() {
         title: "",
         description: "",
         categoryId: "",
+        priceType: "PER_JOB",
         price: 0,
         duration: 60,
         tags: "",
@@ -201,6 +239,119 @@ function ProfilePageContent() {
       setServiceUploadError(error instanceof Error ? error.message : "No se pudo guardar el servicio");
     } finally {
       setServiceUploading(false);
+    }
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioForm(emptyPortfolioForm);
+    setEditingPortfolioId(null);
+    setPortfolioFile(null);
+    setPortfolioError(null);
+  };
+
+  const handlePortfolioFileChange = (file: File | null) => {
+    if (!file) {
+      setPortfolioFile(null);
+      return;
+    }
+    const validation = validateFile(file, FileCategory.CERTIFICATE);
+    if (!validation.isValid) {
+      setPortfolioError(validation.error || "Archivo no permitido");
+      return;
+    }
+    setPortfolioError(null);
+    setPortfolioFile(file);
+  };
+
+  const handlePortfolioSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!professionalId) {
+      toast.error("Necesitas un perfil profesional para guardar el portafolio");
+      return;
+    }
+
+    const errors: string[] = [];
+    if (!portfolioForm.title || portfolioForm.title.trim().length < 3) {
+      errors.push("El título debe tener al menos 3 caracteres");
+    }
+    if (!portfolioForm.type) {
+      errors.push("Selecciona un tipo");
+    }
+    if (portfolioForm.startDate && portfolioForm.endDate && portfolioForm.startDate > portfolioForm.endDate) {
+      errors.push("La fecha de inicio no puede ser mayor que la de fin");
+    }
+    if (errors.length) {
+      toast.error(errors[0]);
+      return;
+    }
+
+    const tags = portfolioForm.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+
+    let attachmentUrl = portfolioForm.attachmentUrl;
+
+    try {
+      if (portfolioFile) {
+        setPortfolioUploading(true);
+        const [uploaded] = await fileUploadService.uploadFiles([portfolioFile], FileCategory.CERTIFICATE, undefined, {
+          folder: "certificates",
+        });
+        attachmentUrl = uploaded?.url || attachmentUrl;
+      }
+
+      await upsertPortfolioMutation.mutateAsync({
+        id: editingPortfolioId || undefined,
+        professionalId,
+        title: portfolioForm.title,
+        type: portfolioForm.type,
+        description: portfolioForm.description || undefined,
+        organization: portfolioForm.organization || undefined,
+        link: portfolioForm.link || undefined,
+        attachmentUrl,
+        tags,
+        startDate: portfolioForm.startDate || undefined,
+        endDate: portfolioForm.isCurrent ? null : portfolioForm.endDate || undefined,
+        isCurrent: portfolioForm.isCurrent,
+      });
+
+      resetPortfolioForm();
+    } catch (error) {
+      console.error(error);
+      setPortfolioError(error instanceof Error ? error.message : "No se pudo guardar el portafolio");
+    } finally {
+      setPortfolioUploading(false);
+    }
+  };
+
+  const handleEditPortfolio = (item: any) => {
+    setEditingPortfolioId(item.id);
+    setPortfolioForm({
+      title: item.title || "",
+      type: item.type || "PROJECT",
+      description: item.description || "",
+      organization: item.organization || "",
+      link: item.link || "",
+      attachmentUrl: item.attachmentUrl || "",
+      tags: (item.tags || []).join(", "),
+      startDate: item.startDate ? item.startDate.slice(0, 10) : "",
+      endDate: item.endDate ? item.endDate.slice(0, 10) : "",
+      isCurrent: Boolean(item.isCurrent),
+    });
+    setPortfolioFile(null);
+  };
+
+  const handleDeletePortfolio = async (id: string) => {
+    if (!professionalId) return;
+    try {
+      await deletePortfolioMutation.mutateAsync({ id, professionalId });
+      if (editingPortfolioId === id) {
+        resetPortfolioForm();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -225,6 +376,8 @@ function ProfilePageContent() {
       </div>
     );
   }
+
+  const role = user?.role || "CLIENT";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/50 via-background to-background">
@@ -368,6 +521,21 @@ function ProfilePageContent() {
                           placeholder="120000"
                           required
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Tipo de precio</label>
+                        <Select
+                          value={serviceForm.priceType}
+                          onValueChange={(value) => setServiceForm((prev) => ({ ...prev, priceType: value as "PER_JOB" | "PER_HOUR" }))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecciona tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PER_JOB">Por trabajo</SelectItem>
+                            <SelectItem value="PER_HOUR">Por hora</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Duración (min)</label>
@@ -548,7 +716,7 @@ function ProfilePageContent() {
                                       </Badge>
                                     )}
                                     <Badge variant="outline" className="text-xs font-semibold">
-                                      {service.price !== undefined ? `$${service.price.toLocaleString("es-CO")}` : "Sin precio"}
+                                      {service.price !== undefined ? `$${service.price.toLocaleString("es-CO")}${service.priceType === "PER_HOUR" ? " / hora" : ""}` : "Sin precio"}
                                     </Badge>
                                   </div>
                                   <p className="text-sm text-muted-foreground line-clamp-2">
@@ -589,6 +757,250 @@ function ProfilePageContent() {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isProfessional && (
+              <Card className="border-muted/70 shadow-sm">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <CardTitle>Portafolio profesional</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Muestra proyectos, experiencia y certificados que verán tus clientes.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      Portafolio
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Tus elementos</p>
+                      <span className="text-xs text-muted-foreground">Visible en tu perfil público</span>
+                    </div>
+
+                    {loadingPortfolio ? (
+                      <p className="text-sm text-muted-foreground">Cargando portafolio...</p>
+                    ) : (portfolioItems || []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {role === "ADMIN"
+                          ? "No hay elementos en este portafolio."
+                          : role === "PROFESSIONAL"
+                            ? "Aún no has agregado elementos a tu portafolio."
+                            : "Los clientes no gestionan portafolio."}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {(portfolioItems || []).map((item) => (
+                          <Card key={item.id} className="border-muted/60">
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold leading-tight">{item.title}</h4>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {item.type === "EXPERIENCE" ? "Experiencia" : item.type === "CERTIFICATE" ? "Certificado" : "Proyecto"}
+                                    </Badge>
+                                    {item.organization && (
+                                      <Badge variant="outline" className="text-xs">{item.organization}</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {item.startDate ? new Date(item.startDate).toLocaleDateString("es-CO") : "Sin fecha"}
+                                    {" "}•{" "}
+                                    {item.isCurrent ? "Actual" : item.endDate ? new Date(item.endDate).toLocaleDateString("es-CO") : "Sin fin"}
+                                  </p>
+                                  {item.description && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-2">
+                                    {(item.tags || []).map((tag) => (
+                                      <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                                    ))}
+                                    {item.attachmentUrl && (
+                                      <Link href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs flex items-center gap-1 text-primary">
+                                        <Paperclip className="h-3 w-3" />
+                                        Ver adjunto
+                                      </Link>
+                                    )}
+                                    {item.link && (
+                                      <Link href={item.link} target="_blank" rel="noopener noreferrer" className="text-xs flex items-center gap-1 text-primary">
+                                        <LinkIcon className="h-3 w-3" />
+                                        Enlace
+                                      </Link>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => handleEditPortfolio(item)}>
+                                    Editar
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeletePortfolio(item.id)}
+                                    disabled={deletePortfolioMutation.isPending}
+                                  >
+                                    Eliminar
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <form onSubmit={handlePortfolioSubmit} className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Título</label>
+                        <Input
+                          value={portfolioForm.title}
+                          onChange={(e) => setPortfolioForm((prev) => ({ ...prev, title: e.target.value }))}
+                          placeholder="Ej. Proyecto solar residencial"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Tipo</label>
+                        <Select
+                          value={portfolioForm.type}
+                          onValueChange={(value) => setPortfolioForm((prev) => ({ ...prev, type: value as typeof prev.type }))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecciona tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EXPERIENCE">Experiencia</SelectItem>
+                            <SelectItem value="PROJECT">Proyecto</SelectItem>
+                            <SelectItem value="CERTIFICATE">Certificado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Organización / cliente</label>
+                        <Input
+                          value={portfolioForm.organization}
+                          onChange={(e) => setPortfolioForm((prev) => ({ ...prev, organization: e.target.value }))}
+                          placeholder="Empresa o cliente"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Enlace</label>
+                        <Input
+                          value={portfolioForm.link}
+                          onChange={(e) => setPortfolioForm((prev) => ({ ...prev, link: e.target.value }))}
+                          placeholder="https://"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Fecha de inicio</label>
+                        <Input
+                          type="date"
+                          value={portfolioForm.startDate}
+                          onChange={(e) => setPortfolioForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Fecha de fin</label>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Checkbox
+                              id="portfolio-current"
+                              checked={portfolioForm.isCurrent}
+                              onCheckedChange={(checked) =>
+                                setPortfolioForm((prev) => ({ ...prev, isCurrent: Boolean(checked), endDate: checked ? "" : prev.endDate }))
+                              }
+                            />
+                            <label htmlFor="portfolio-current" className="cursor-pointer">
+                              Actualmente
+                            </label>
+                          </div>
+                        </div>
+                        <Input
+                          type="date"
+                          value={portfolioForm.endDate}
+                          onChange={(e) => setPortfolioForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                          disabled={portfolioForm.isCurrent}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Descripción</label>
+                      <Textarea
+                        value={portfolioForm.description}
+                        onChange={(e) => setPortfolioForm((prev) => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        placeholder="Resumen breve del proyecto o experiencia"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Etiquetas (coma separadas)</label>
+                      <Input
+                        value={portfolioForm.tags}
+                        onChange={(e) => setPortfolioForm((prev) => ({ ...prev, tags: e.target.value }))}
+                        placeholder="solar, mantenimiento, residencial"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          Adjuntar certificado (opcional)
+                        </label>
+                        <span className="text-xs text-muted-foreground">PDF o imagen, máx 5MB.</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="file"
+                          accept="application/pdf,image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          id="portfolio-file-input"
+                          onChange={(e) => handlePortfolioFileChange(e.target.files?.[0] || null)}
+                        />
+                        <Button type="button" variant="secondary" size="sm" onClick={() => document.getElementById("portfolio-file-input")?.click()} disabled={portfolioUploading}>
+                          {portfolioUploading ? "Subiendo..." : portfolioFile ? portfolioFile.name : "Elegir archivo"}
+                        </Button>
+                        {portfolioForm.attachmentUrl && !portfolioFile && (
+                          <Link href={portfolioForm.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary flex items-center gap-1">
+                            <Paperclip className="h-3 w-3" />
+                            Archivo actual
+                          </Link>
+                        )}
+                      </div>
+                      {portfolioError && <p className="text-sm text-destructive">{portfolioError}</p>}
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      {editingPortfolioId && (
+                        <Button type="button" variant="ghost" onClick={resetPortfolioForm}>
+                          Cancelar
+                        </Button>
+                      )}
+                      <Button type="submit" disabled={portfolioUploading || upsertPortfolioMutation.isPending}>
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        {editingPortfolioId ? (upsertPortfolioMutation.isPending ? "Actualizando..." : "Guardar cambios") : upsertPortfolioMutation.isPending ? "Guardando..." : "Agregar"}
+                      </Button>
+                    </div>
+                  </form>
                 </CardContent>
               </Card>
             )}

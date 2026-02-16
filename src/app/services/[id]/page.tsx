@@ -76,8 +76,9 @@ export default function ServiceDetailPage() {
     );
   }
   const reviews = reviewsData?.reviews || [];
+  const priceSuffix = service?.priceType === "PER_HOUR" ? " / hora" : service?.priceType === "PER_JOB" ? " por trabajo" : "";
   const formattedPrice = Number.isFinite(service?.price)
-    ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(Number(service.price))
+    ? `${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(Number(service.price))}${priceSuffix}`
     : "A convenir";
   const isOwner = Boolean(
     currentUser &&
@@ -403,7 +404,7 @@ export default function ServiceDetailPage() {
                 <div className="space-y-1 text-sm text-foreground/60">
                   <div>Duración: {Math.floor(service.duration / 60)}h {service.duration % 60}min</div>
                   <div>Categoría: {service.category?.name}</div>
-                  <div>Precio: {formattedPrice}</div>
+                    <div>Precio: {formattedPrice}</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -35,6 +35,7 @@ export interface Professional {
       slug: string;
     };
   }>;
+  portfolios?: PortfolioItem[];
   availability?: Array<{
     dayOfWeek: number;
     startTime: string;
@@ -60,6 +61,23 @@ export interface Professional {
   _count?: {
     services: number;
   };
+}
+
+export interface PortfolioItem {
+  id: string;
+  professionalId: string;
+  title: string;
+  type: 'EXPERIENCE' | 'CERTIFICATE' | 'PROJECT';
+  description?: string | null;
+  organization?: string | null;
+  link?: string | null;
+  attachmentUrl?: string | null;
+  tags: string[];
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProfessionalSearchFilters extends Record<string, unknown> {
@@ -91,6 +109,21 @@ export interface UpdateProfessionalData {
     endTime: string;
     isAvailable: boolean;
   }>;
+}
+
+export interface UpsertPortfolioData {
+  id?: string;
+  professionalId?: string;
+  title: string;
+  type: PortfolioItem['type'];
+  description?: string | null;
+  organization?: string | null;
+  link?: string | null;
+  attachmentUrl?: string | null;
+  tags?: string[];
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent?: boolean;
 }
 
 class ProfessionalsApiService {
@@ -164,6 +197,29 @@ class ProfessionalsApiService {
   async getProfessionalById(id: string): Promise<Professional> {
     const response = await apiClient.get<Professional>(`/professionals/${id}`);
     return response.data;
+  }
+
+  async getPortfolio(professionalId?: string): Promise<PortfolioItem[]> {
+    if (!professionalId) {
+      // Own portfolio (requires auth)
+      const response = await apiClient.get<{ items: PortfolioItem[] }>(`/professionals/portfolio`);
+      return (response as any).data?.items ?? (response as any).items ?? [];
+    }
+    const response = await apiClient.get<{ items: PortfolioItem[] }>(`/professionals/${professionalId}/portfolio`);
+    return (response as any).data?.items ?? (response as any).items ?? [];
+  }
+
+  async upsertPortfolio(data: UpsertPortfolioData): Promise<PortfolioItem> {
+    if (data.id) {
+      const response = await apiClient.put<PortfolioItem>(`/professionals/portfolio/${data.id}`, data);
+      return (response as any).data ?? (response as any);
+    }
+    const response = await apiClient.post<PortfolioItem>(`/professionals/portfolio`, data);
+    return (response as any).data ?? (response as any);
+  }
+
+  async deletePortfolio(id: string): Promise<void> {
+    await apiClient.delete(`/professionals/portfolio/${id}`);
   }
 
   // Update professional profile (only the professional themselves)

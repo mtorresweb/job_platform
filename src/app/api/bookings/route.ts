@@ -194,6 +194,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const basePrice = service.price || 0;
+    const durationHours = Math.max(0, (service.duration || 0) / 60);
+    const totalPrice = service.priceType === 'PER_HOUR'
+      ? Number((basePrice * durationHours).toFixed(2))
+      : basePrice;
+
     const booking = await prisma.booking.create({
       data: {
         clientId: userId,
@@ -201,7 +207,7 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         scheduledAt: validatedData.data.scheduledAt,
         duration: service.duration,
-        totalPrice: service.price || 0.0,
+        totalPrice,
         notes: validatedData.data.notes,
       },
       include: {
@@ -227,6 +233,7 @@ export async function POST(request: NextRequest) {
             title: true,
             duration: true,
             price: true,
+            priceType: true,
             images: true,
             category: {
               select: {
