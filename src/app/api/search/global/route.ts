@@ -2,6 +2,54 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
 import { Prisma } from '@prisma/client';
+import Fuse from 'fuse.js';
+
+// Simple normalized Damerau-Levenshtein distance for fuzzy scoring
+function damerauLevenshtein(a: string, b: string): number {
+  const lenA = a.length;
+  const lenB = b.length;
+  if (lenA === 0) return lenB;
+  if (lenB === 0) return lenA;
+
+  const dist: number[][] = Array.from({ length: lenA + 1 }, () => new Array(lenB + 1).fill(0));
+  for (let i = 0; i <= lenA; i++) dist[i][0] = i;
+  for (let j = 0; j <= lenB; j++) dist[0][j] = j;
+
+  for (let i = 1; i <= lenA; i++) {
+    for (let j = 1; j <= lenB; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dist[i][j] = Math.min(
+        dist[i - 1][j] + 1, // deletion
+        dist[i][j - 1] + 1, // insertion
+        dist[i - 1][j - 1] + cost // substitution
+      );
+
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        dist[i][j] = Math.min(dist[i][j], dist[i - 2][j - 2] + cost); // transposition
+      }
+    }
+  }
+
+  return dist[lenA][lenB];
+}
+
+function normalizedSimilarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const na = a.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const nb = b.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const distance = damerauLevenshtein(na, nb);
+  const longest = Math.max(na.length, nb.length);
+  return longest === 0 ? 0 : 1 - distance / longest;
+}
+
+function bestTextSimilarity(query: string, texts: Array<string | null | undefined>): number {
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return 0;
+  return texts
+    .filter(Boolean)
+    .map((text) => normalizedSimilarity(cleanQuery, String(text)))
+    .reduce((max, curr) => (curr > max ? curr : max), 0);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +65,8 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'relevance';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '12');    const skip = (page - 1) * limit;
+    const limit = parseInt(searchParams.get('limit') || '12');
+    const skip = (page - 1) * limit;
 
     // Build search conditions
     const serviceWhere: Record<string, unknown> = {
@@ -26,11 +75,19 @@ export async function GET(request: NextRequest) {
 
     const professionalWhere: Record<string, unknown> = {};
 
+    const searchTokens = query
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
     if (query) {
       serviceWhere.OR = [
         { title: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },
         { tags: { has: query } },
+        // Token-based partial matches to widen candidate pool for fuzzy scoring
+        ...searchTokens.map((token) => ({ title: { contains: token, mode: 'insensitive' } })),
+        ...searchTokens.map((token) => ({ description: { contains: token, mode: 'insensitive' } })),
       ];
     }
 
@@ -86,10 +143,13 @@ export async function GET(request: NextRequest) {
         ] as unknown as Record<string, unknown>;
     }
 
-    // Search services
-    const [services, servicesTotal] = await Promise.all([
-      prisma.service.findMany({
-        where: serviceWhere,
+    let servicesTotal = 0;
+    let services: any[] = [];
+
+    if (query) {
+      // Broader candidate pool ignoring text filters to allow typos
+      const serviceCandidates = await prisma.service.findMany({
+        where: { ...serviceWhere, OR: undefined }, // drop text contains for fuzzy
         include: {
           category: true,
           professional: {
@@ -106,50 +166,141 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy,
-        skip,
-        take: limit,
-      }),
-      prisma.service.count({ where: serviceWhere }),
-    ]);    // Search professionals (for query matches)
+        take: Math.max(limit * 8, 160), // fetch extra for fuzzy re-rank
+      });
+
+      const fuseServices = new Fuse(serviceCandidates, {
+        includeScore: true,
+        shouldSort: true,
+        threshold: 0.6, // more permisivo para typos
+        ignoreLocation: true,
+        distance: 200,
+        minMatchCharLength: 2,
+        keys: [
+          { name: 'title', weight: 0.45 },
+          { name: 'description', weight: 0.25 },
+          { name: 'tags', weight: 0.1 },
+          { name: 'category.name', weight: 0.1 },
+          { name: 'professional.user.name', weight: 0.1 },
+        ],
+      });
+
+      const fuseResults = fuseServices.search(query);
+      const ranked = fuseResults.length
+        ? fuseResults
+        : serviceCandidates.map((item) => ({ item, score: 1 }));
+
+      servicesTotal = ranked.length;
+      services = ranked
+        .sort((a, b) => {
+          const scoreA = a.score ?? 1;
+          const scoreB = b.score ?? 1;
+          if (scoreA !== scoreB) return scoreA - scoreB; // Fuse: menor score = mejor match
+          const ratingA = (a.item as any)?.professional?.rating ?? 0;
+          const ratingB = (b.item as any)?.professional?.rating ?? 0;
+          return ratingB - ratingA;
+        })
+        .slice(skip, skip + limit)
+        .map((r) => r.item as typeof serviceCandidates[number]);
+    } else {
+      // Standard path without fuzzy rerank
+      [services, servicesTotal] = await Promise.all([
+        prisma.service.findMany({
+          where: serviceWhere,
+          include: {
+            category: true,
+            professional: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.service.count({ where: serviceWhere }),
+      ]);
+    }
+
+    // Search professionals (broader pool + fuzzy)
     let professionals: unknown[] = [];
-    let professionalsTotal = 0;    if (query) {
+    let professionalsTotal = 0;
+
+    if (query) {
       const professionalSearchWhere: Prisma.ProfessionalWhereInput = {
         ...professionalWhere,
         OR: [
           { bio: { contains: query, mode: Prisma.QueryMode.insensitive } },
           { specialties: { has: query } },
           { user: { name: { contains: query, mode: Prisma.QueryMode.insensitive } } },
+          ...searchTokens.map((token) => ({ bio: { contains: token, mode: Prisma.QueryMode.insensitive } })),
+          ...searchTokens.map((token) => ({ user: { name: { contains: token, mode: Prisma.QueryMode.insensitive } } })),
         ],
       };
 
-      [professionals, professionalsTotal] = await Promise.all([
-        prisma.professional.findMany({
-          where: professionalSearchWhere,
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true,
-              },
-            },
-            services: {
-              where: { isActive: true },
-              take: 3,
-              select: {
-                id: true,
-                title: true,
-                price: true,
-                images: true,
-              },
+      const professionalCandidates = await prisma.professional.findMany({
+        where: { ...professionalSearchWhere, OR: undefined },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
             },
           },
-          orderBy: { rating: 'desc' },
-          take: Math.min(limit, 6), // Limit professionals in global search
-        }),
-        prisma.professional.count({ where: professionalSearchWhere }),
-      ]);
+          services: {
+            where: { isActive: true },
+            take: 3,
+            select: {
+              id: true,
+              title: true,
+              price: true,
+              images: true,
+            },
+          },
+        },
+        orderBy: { rating: 'desc' },
+        take: Math.max(limit * 8, 120),
+      });
+
+      const fuseProfessionals = new Fuse(professionalCandidates, {
+        includeScore: true,
+        shouldSort: true,
+        threshold: 0.6,
+        ignoreLocation: true,
+        distance: 200,
+        minMatchCharLength: 2,
+        keys: [
+          { name: 'user.name', weight: 0.5 },
+          { name: 'bio', weight: 0.25 },
+          { name: 'specialties', weight: 0.25 },
+        ],
+      });
+
+      const proResults = fuseProfessionals.search(query);
+      const rankedPros = proResults.length
+        ? proResults
+        : professionalCandidates.map((item) => ({ item, score: 1 }));
+
+      professionalsTotal = rankedPros.length;
+      professionals = rankedPros
+        .sort((a, b) => {
+          const scoreA = a.score ?? 1;
+          const scoreB = b.score ?? 1;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          return ((b.item as any)?.rating ?? 0) - ((a.item as any)?.rating ?? 0);
+        })
+        .slice(0, Math.min(limit, 12))
+        .map((r) => r.item as typeof professionalCandidates[number]);
     }
 
     // Get categories for faceted search
@@ -186,19 +337,29 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    // Get search suggestions if query is short
+    // Get fuzzy suggestions (top scored service titles)
     let suggestions: string[] = [];
-    if (query && query.length >= 2 && query.length <= 3) {
-      const suggestionServices = await prisma.service.findMany({
-        where: {
-          isActive: true,
-          title: { contains: query, mode: 'insensitive' },
-        },
+    if (query && query.length >= 2) {
+      const suggestionCandidates = await prisma.service.findMany({
+        where: { isActive: true },
         select: { title: true },
-        take: 5,
+        take: 300,
       });
 
-      suggestions = suggestionServices.map(s => s.title);
+      const fuseSuggestions = new Fuse(
+        suggestionCandidates.map((s) => s.title),
+        {
+          includeScore: true,
+          threshold: 0.48,
+          ignoreLocation: true,
+          minMatchCharLength: 2,
+        }
+      );
+
+      suggestions = fuseSuggestions
+        .search(query)
+        .slice(0, 10)
+        .map((r) => r.item);
     }
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/database/prisma';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+import Fuse from 'fuse.js';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,10 +68,10 @@ export async function GET(request: NextRequest) {
         orderBy = { rating: 'desc' };
     }
 
-    // Fetch more rows when there's a query to allow in-memory partial matching on specialties
-    const take = query ? limit * 5 : limit;
+    // Fetch more rows when there's a query to allow fuzzy matching
+    const take = query ? Math.max(limit * 4, 80) : limit;
 
-    const [professionals, total] = await Promise.all([
+    const [professionals] = await Promise.all([
       prisma.professional.findMany({
         where,
         include: {
@@ -101,25 +102,37 @@ export async function GET(request: NextRequest) {
         skip: query ? 0 : skip,
         take,
       }),
-      prisma.professional.count({ where }),
     ]);
 
-    // In-memory filter for partial matches (specialties, services, bio)
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = normalizedQuery
-      ? professionals.filter((p) => {
-          const specialtiesMatch = (p.specialties || []).some((s) => s.toLowerCase().includes(normalizedQuery));
-          const servicesMatch = (p.services || []).some(
-            (s) =>
-              s.title.toLowerCase().includes(normalizedQuery) ||
-              (s as any).description?.toLowerCase?.().includes(normalizedQuery)
-          );
-          const bioMatch = p.bio?.toLowerCase().includes(normalizedQuery);
-          return specialtiesMatch || servicesMatch || bioMatch;
-        })
-      : professionals;
+    let filtered = professionals;
+    if (query) {
+      const fuse = new Fuse(professionals, {
+        includeScore: true,
+        shouldSort: true,
+        threshold: 0.45,
+        distance: 100,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+        keys: [
+          { name: 'user.name', weight: 0.5 },
+          { name: 'bio', weight: 0.25 },
+          { name: 'specialties', weight: 0.15 },
+          { name: 'services.title', weight: 0.1 },
+        ],
+      });
 
-    // Apply pagination after filtering
+      const results = fuse.search(query).filter((r) => (r.score ?? 1) <= 0.65);
+      const ranked = results.length ? results : professionals.map((item) => ({ item, score: 1 }));
+      filtered = ranked
+        .sort((a, b) => {
+          const scoreA = a.score ?? 1;
+          const scoreB = b.score ?? 1;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          return ((b.item as any)?.rating ?? 0) - ((a.item as any)?.rating ?? 0);
+        })
+        .map((r) => r.item as (typeof professionals)[number]);
+    }
+
     const start = skip;
     const end = skip + limit;
     const paginated = filtered.slice(start, end);

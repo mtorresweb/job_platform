@@ -13,41 +13,164 @@ async function main() {
   await prisma.professional.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create service categories
-  const categories = await Promise.all([
-    prisma.serviceCategory.create({
-      data: {
-        name: 'Hogar',
-        description: 'Servicios para el hogar y reparaciones domésticas',
-        icon: 'home',
-        slug: 'hogar',
-      },
-    }),
-    prisma.serviceCategory.create({
-      data: {
-        name: 'Tecnología',
-        description: 'Desarrollo web, aplicaciones y servicios IT',
-        icon: 'laptop',
-        slug: 'tecnologia',
-      },
-    }),
-    prisma.serviceCategory.create({
-      data: {
-        name: 'Fotografía',
-        description: 'Fotografía profesional para eventos y retratos',
-        icon: 'camera',
-        slug: 'fotografia',
-      },
-    }),
-    prisma.serviceCategory.create({
-      data: {
-        name: 'Automotriz',
-        description: 'Reparación y mantenimiento de vehículos',
-        icon: 'car',
-        slug: 'automotriz',
-      },
-    }),
-  ]);
+  // Create service categories (expanded so profesionales tengan opciones reales)
+  const categoryData = [
+    {
+      name: 'Hogar',
+      description: 'Servicios para el hogar y reparaciones domésticas',
+      icon: 'home',
+      slug: 'hogar',
+    },
+    {
+      name: 'Tecnología',
+      description: 'Desarrollo web, aplicaciones y servicios IT',
+      icon: 'laptop',
+      slug: 'tecnologia',
+    },
+    {
+      name: 'Fotografía',
+      description: 'Fotografía profesional para eventos y retratos',
+      icon: 'camera',
+      slug: 'fotografia',
+    },
+    {
+      name: 'Automotriz',
+      description: 'Reparación y mantenimiento de vehículos',
+      icon: 'car',
+      slug: 'automotriz',
+    },
+    {
+      name: 'Belleza y bienestar',
+      description: 'Peluquería, barbería, maquillaje y spa',
+      icon: 'sparkles',
+      slug: 'belleza-bienestar',
+    },
+    {
+      name: 'Salud y cuidados',
+      description: 'Cuidado de adultos mayores, enfermería y terapias',
+      icon: 'heart-pulse',
+      slug: 'salud-cuidados',
+    },
+    {
+      name: 'Educación y tutorías',
+      description: 'Clases particulares, idiomas y apoyo escolar',
+      icon: 'book-open',
+      slug: 'educacion-tutorias',
+    },
+    {
+      name: 'Marketing y diseño',
+      description: 'Social media, branding, diseño gráfico y web',
+      icon: 'megaphone',
+      slug: 'marketing-diseno',
+    },
+    {
+      name: 'Eventos y catering',
+      description: 'Planeación de eventos, banquetes y logística',
+      icon: 'calendar-clock',
+      slug: 'eventos-catering',
+    },
+    {
+      name: 'Construcción y remodelación',
+      description: 'Obra civil, remodelaciones, acabados y drywall',
+      icon: 'hammer',
+      slug: 'construccion-remodelacion',
+    },
+    {
+      name: 'Jardinería y exteriores',
+      description: 'Paisajismo, poda, riego y mantenimiento de zonas verdes',
+      icon: 'sprout',
+      slug: 'jardineria-exteriores',
+    },
+    {
+      name: 'Mascotas',
+      description: 'Paseo, grooming, entrenamiento y cuidado a domicilio',
+      icon: 'paw-print',
+      slug: 'mascotas',
+    },
+    {
+      name: 'Transporte y logística',
+      description: 'Mudanzas, envíos, mensajería y fletes',
+      icon: 'truck',
+      slug: 'transporte-logistica',
+    },
+    {
+      name: 'Finanzas y legal',
+      description: 'Contabilidad, impuestos y asesoría jurídica',
+      icon: 'scale',
+      slug: 'finanzas-legal',
+    },
+    {
+      name: 'Deporte y fitness',
+      description: 'Entrenamiento personal, clases grupales y nutrición deportiva',
+      icon: 'dumbbell',
+      slug: 'deporte-fitness',
+    },
+    {
+      name: 'Seguridad y vigilancia',
+      description: 'Instalación de alarmas, CCTV y monitoreo',
+      icon: 'shield',
+      slug: 'seguridad-vigilancia',
+    },
+    {
+      name: 'Mantenimiento industrial',
+      description: 'Mantenimiento de maquinaria y servicios industriales',
+      icon: 'wrench',
+      slug: 'mantenimiento-industrial',
+    },
+    {
+      name: 'Arte y música',
+      description: 'Clases de música, producción y artes plásticas',
+      icon: 'music-note',
+      slug: 'arte-musica',
+    },
+    {
+      name: 'Servicios infantiles',
+      description: 'Cuidado infantil, animaciones y tutorías para niños',
+      icon: 'baby',
+      slug: 'servicios-infantiles',
+    },
+    {
+      name: 'Traducción y contenidos',
+      description: 'Traducción, redacción y corrección de estilo',
+      icon: 'translate',
+      slug: 'traduccion-contenidos',
+    },
+    {
+      name: 'Ventas y retail',
+      description: 'Promotores, vitrinas, inventario y apoyo comercial',
+      icon: 'store',
+      slug: 'ventas-retail',
+    },
+    {
+      name: 'Bienes raíces',
+      description: 'Corretaje, avalúos, home staging y administración',
+      icon: 'building',
+      slug: 'bienes-raices',
+    },
+    {
+      name: 'Soporte remoto',
+      description: 'Mesa de ayuda, soporte TI y asistencia virtual',
+      icon: 'headset',
+      slug: 'soporte-remoto',
+    },
+    {
+      name: 'Ciencia de datos',
+      description: 'Analítica, dashboards y modelos predictivos',
+      icon: 'chart-bar',
+      slug: 'ciencia-datos',
+    },
+    {
+      name: 'Sostenibilidad',
+      description: 'Energías renovables, reciclaje y eficiencia energética',
+      icon: 'leaf',
+      slug: 'sostenibilidad',
+    },
+  ];
+
+  const categories = [];
+  for (const category of categoryData) {
+    categories.push(await prisma.serviceCategory.create({ data: category }));
+  }
 
   console.log('✅ Created service categories');
 

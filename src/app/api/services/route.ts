@@ -1,50 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/infrastructure/auth/config";
-import { auth } from "@/infrastructure/auth/auth";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/infrastructure/auth/config';
+import { auth } from '@/infrastructure/auth/auth';
 import { serviceSchema, searchParamsSchema } from '@/shared/utils/validations';
 import { handlePrismaError } from '@/infrastructure/database/prisma';
+import Fuse from 'fuse.js';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const params = Object.fromEntries(searchParams);
-    
+
     const validatedParams = searchParamsSchema.safeParse(params);
     if (!validatedParams.success) {
       return NextResponse.json(
         { success: false, errors: validatedParams.error.flatten().fieldErrors },
         { status: 400 }
       );
-    }    const {
+    }
+
+    const {
       query,
       category,
       priceMin,
       priceMax,
       rating,
       location,
-      // availability, // Not used in current implementation
       sortBy = 'rating',
       sortOrder = 'desc',
       page = 1,
       limit = 12,
-    } = validatedParams.data;    // Build where clause
-    const where: Record<string, unknown> = {
-      isActive: true,
-    };
+    } = validatedParams.data;
 
-    if (query) {
-      where.OR = [
-        { title: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
-        { tags: { has: query } },
-      ];
-    }
+    const where: Record<string, unknown> = { isActive: true };
 
-    if (category) {
-      where.category = { slug: category };
-    }    if (priceMin !== undefined || priceMax !== undefined) {
+    if (category) where.category = { slug: category };
+
+    if (priceMin !== undefined || priceMax !== undefined) {
       where.price = {};
       if (priceMin !== undefined) (where.price as { gte?: number }).gte = priceMin;
       if (priceMax !== undefined) (where.price as { lte?: number }).lte = priceMax;
@@ -52,9 +45,12 @@ export async function GET(request: NextRequest) {
 
     if (rating) {
       where.professional = {
+        ...(where.professional as Record<string, unknown>),
         rating: { gte: rating },
       };
-    }    if (location) {
+    }
+
+    if (location) {
       where.professional = {
         ...(where.professional as Record<string, unknown>),
         OR: [
@@ -63,7 +59,8 @@ export async function GET(request: NextRequest) {
           { address: { contains: location, mode: 'insensitive' } },
         ],
       };
-    }// Build orderBy clause
+    }
+
     let orderBy: Record<string, unknown> = {};
     switch (sortBy) {
       case 'price':
@@ -83,31 +80,80 @@ export async function GET(request: NextRequest) {
     }
 
     const skip = (page - 1) * limit;
+    let services: any[] = [];
+    let total = 0;
 
-    const [services, total] = await Promise.all([
-      prisma.service.findMany({
-        where,
+    if (query) {
+      const candidates = await prisma.service.findMany({
+        where: { ...where, OR: undefined },
         include: {
           category: true,
           professional: {
             include: {
               user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  avatar: true,
-                },
+                select: { id: true, name: true, email: true, avatar: true },
               },
             },
           },
         },
         orderBy,
-        skip,
-        take: limit,
-      }),
-      prisma.service.count({ where }),
-    ]);
+        take: Math.max(limit * 4, 80),
+      });
+
+      const fuse = new Fuse(candidates, {
+        includeScore: true,
+        shouldSort: true,
+        threshold: 0.45,
+        distance: 100,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+        keys: [
+          { name: 'title', weight: 0.5 },
+          { name: 'description', weight: 0.25 },
+          { name: 'tags', weight: 0.1 },
+          { name: 'category.name', weight: 0.1 },
+          { name: 'professional.user.name', weight: 0.05 },
+        ],
+      });
+
+      const results = fuse.search(query).filter((r) => (r.score ?? 1) <= 0.65);
+      const ranked = results.length ? results : candidates.map((item) => ({ item, score: 1 }));
+
+      total = ranked.length;
+      services = ranked
+        .sort((a, b) => {
+          const scoreA = a.score ?? 1;
+          const scoreB = b.score ?? 1;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          const ratingA = (a.item as any)?.professional?.rating ?? 0;
+          const ratingB = (b.item as any)?.professional?.rating ?? 0;
+          return ratingB - ratingA;
+        })
+        .slice(skip, skip + limit)
+        .map((r) => r.item as (typeof candidates)[number]);
+    } else {
+      const [found, count] = await Promise.all([
+        prisma.service.findMany({
+          where,
+          include: {
+            category: true,
+            professional: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, avatar: true },
+                },
+              },
+            },
+          },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.service.count({ where }),
+      ]);
+      services = found;
+      total = count;
+    }
 
     return NextResponse.json({
       success: true,
@@ -134,16 +180,14 @@ export async function GET(request: NextRequest) {
 }
 
 async function getAuthenticatedUserId(headers: Headers): Promise<string | null> {
-  // Primero intenta con NextAuth
   const session = await getServerSession(authOptions);
   if (session?.user?.id) return session.user.id;
 
-  // Fallback a better-auth (tokens via headers)
   try {
     const betterSession = await auth.api.getSession({ headers });
     if (betterSession?.user?.id) return betterSession.user.id;
   } catch (error) {
-    console.error("Error obteniendo sesión better-auth:", error);
+    console.error('Error obteniendo sesión better-auth:', error);
   }
 
   return null;
@@ -170,7 +214,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is a professional, create profile if missing
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { professional: true },

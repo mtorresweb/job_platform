@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight as LinkIcon, Briefcase, Calendar, Paperclip, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight as LinkIcon, Briefcase, Calendar, CheckIcon, ChevronDownIcon, Paperclip, PlusCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { useServiceCategories, useCreateService, useProfessionalServices, useUpdateService } from "@/shared/hooks/useServices";
 import { toast } from "sonner";
@@ -67,6 +69,7 @@ function ProfilePageContent() {
   const [pendingServicePreviews, setPendingServicePreviews] = useState<string[]>([]);
   const [serviceUploadError, setServiceUploadError] = useState<string | null>(null);
   const [serviceUploading, setServiceUploading] = useState(false);
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
   const emptyPortfolioForm = {
     title: "",
@@ -101,6 +104,21 @@ function ProfilePageContent() {
   const { data: portfolioItems, isLoading: loadingPortfolio } = useProfessionalPortfolio(professionalId || undefined);
   const upsertPortfolioMutation = useUpsertPortfolio();
   const deletePortfolioMutation = useDeletePortfolio();
+
+  const categoryOptions = useMemo(
+    () =>
+      (categories || []).map((category) => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+      })),
+    [categories]
+  );
+
+  const selectedCategory = useMemo(
+    () => categoryOptions.find((category) => category.id === serviceForm.categoryId),
+    [categoryOptions, serviceForm.categoryId]
+  );
 
   useEffect(() => {
     const requestedId = searchParams.get("editService");
@@ -479,22 +497,63 @@ function ProfilePageContent() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Categoría</label>
-                        <Select
-                          value={serviceForm.categoryId}
-                          onValueChange={(value) => setServiceForm((prev) => ({ ...prev, categoryId: value }))}
-                          disabled={loadingCategories}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={loadingCategories ? "Cargando categorías..." : "Seleccionar categoría"} />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-60 overflow-auto w-[--radix-select-trigger-width]">
-                            {(categories || []).map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between"
+                              disabled={loadingCategories || categoryOptions.length === 0}
+                            >
+                              <div className="flex flex-col items-start text-left">
+                                <span className="text-sm">
+                                  {selectedCategory?.name || "Seleccionar categoría"}
+                                </span>
+                                <span className="text-xs text-muted-foreground line-clamp-1">
+                                  {selectedCategory?.description ||
+                                    (loadingCategories
+                                      ? "Cargando categorías..."
+                                      : "Escribe para buscar y filtrar")}
+                                </span>
+                              </div>
+                              <ChevronDownIcon className="h-4 w-4 opacity-60" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[380px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar categoría..." />
+                              <CommandList className="max-h-[320px] overflow-y-auto">
+                                <CommandEmpty>Sin resultados</CommandEmpty>
+                                <CommandGroup heading="Categorías disponibles">
+                                  {categoryOptions.map((category) => (
+                                    <CommandItem
+                                      key={category.id}
+                                      value={`${category.name} ${category.description ?? ""}`}
+                                      onSelect={() => {
+                                        setServiceForm((prev) => ({ ...prev, categoryId: category.id }));
+                                        setCategoryPopoverOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{category.name}</span>
+                                        {category.description && (
+                                          <span className="text-xs text-muted-foreground line-clamp-1">
+                                            {category.description}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {serviceForm.categoryId === category.id && (
+                                        <CheckIcon className="ml-auto h-4 w-4 text-primary" />
+                                      )}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {categoryOptions.length === 0 && !loadingCategories && (
+                          <p className="text-xs text-muted-foreground">No hay categorías disponibles por ahora.</p>
+                        )}
                       </div>
                     </div>
 
