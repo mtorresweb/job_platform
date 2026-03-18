@@ -298,6 +298,9 @@ function ProfilePageContent() {
     if (portfolioForm.startDate && portfolioForm.endDate && portfolioForm.startDate > portfolioForm.endDate) {
       errors.push("La fecha de inicio no puede ser mayor que la de fin");
     }
+    if (!portfolioFile && !portfolioForm.attachmentUrl?.trim()) {
+      errors.push("Debes adjuntar un archivo (PDF o imagen)");
+    }
     if (errors.length) {
       toast.error(errors[0]);
       return;
@@ -309,7 +312,7 @@ function ProfilePageContent() {
       .filter(Boolean)
       .slice(0, 10);
 
-    let attachmentUrl = portfolioForm.attachmentUrl;
+    let attachmentUrl = portfolioForm.attachmentUrl?.trim() || undefined;
 
     try {
       if (portfolioFile) {
@@ -1023,7 +1026,7 @@ function ProfilePageContent() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <label className="text-sm font-medium flex items-center gap-2">
-                          Adjuntar certificado (opcional)
+                          Adjuntar certificado (obligatorio)
                         </label>
                         <span className="text-xs text-muted-foreground">PDF o imagen, máx 5MB.</span>
                       </div>
